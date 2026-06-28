@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#000000">
+<title>Avery's Multiplication</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✖️</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✖️</text></svg>">
+<style>
+  :root {
+    --gap: clamp(10px, 3vw, 18px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #000; color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+  }
+  body { overflow: hidden; }
+
+  .screen {
+    position: fixed; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding: max(env(safe-area-inset-top), 12px) 14px max(env(safe-area-inset-bottom), 14px);
+  }
+  .screen.active { display: flex; }
+
+  /* Points badge */
+  .points {
+    position: fixed;
+    top: max(env(safe-area-inset-top), 10px);
+    right: 14px;
+    z-index: 50;
+    background: #15151c;
+    border: 2px solid #2c2c3a;
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: clamp(16px, 4.5vw, 22px);
+    font-weight: 800;
+    display: flex; align-items: center; gap: 8px;
+    pointer-events: none;
+  }
+  .points .star { font-size: 1.1em; }
+  .points .num { color: #ffd84d; min-width: 1ch; }
+
+  /* ---------- Problem screen ---------- */
+  #problemScreen { justify-content: space-between; }
+  .problem-top {
+    flex: 1 1 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
+  .problem {
+    font-size: clamp(56px, 17vw, 130px);
+    font-weight: 800;
+    letter-spacing: 2px;
+    line-height: 1.1;
+    text-align: center;
+  }
+  .problem .x { color: #7ad0ff; margin: 0 0.12em; }
+  .answer-display {
+    margin-top: clamp(14px, 4vw, 28px);
+    min-height: 1.3em;
+    font-size: clamp(40px, 12vw, 84px);
+    font-weight: 800;
+    color: #ffd84d;
+    border-bottom: 4px solid #33333f;
+    min-width: 2.2em;
+    text-align: center;
+    padding: 0 0.2em 4px;
+  }
+  .answer-display.empty { color: #555; }
+
+  /* Keypad */
+  .keypad {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 480px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--gap);
+    margin-top: var(--gap);
+  }
+  .key {
+    appearance: none; border: none;
+    background: #1c1c26;
+    color: #fff;
+    font-size: clamp(28px, 8vw, 40px);
+    font-weight: 700;
+    border-radius: 18px;
+    padding: clamp(14px, 4.5vw, 26px) 0;
+    cursor: pointer;
+    transition: transform .06s ease, background .12s ease;
+    touch-action: manipulation;
+  }
+  .key:active { transform: scale(0.94); background: #2a2a3a; }
+  .key.back { background: #2a2230; color: #ffb3c7; }
+  .key.check {
+    background: #2bb673; color: #fff;
+    font-weight: 800;
+    font-size: clamp(22px, 6.5vw, 32px);
+  }
+  .key.check:active { background: #229c61; }
+
+  /* ---------- Celebration screen ---------- */
+  #celebrateScreen { justify-content: center; text-align: center; }
+  .cele-emoji {
+    font-size: clamp(80px, 26vw, 170px);
+    animation: pop 0.6s ease, floaty 2.2s ease-in-out infinite 0.6s;
+  }
+  .cele-msg {
+    font-size: clamp(30px, 8.5vw, 50px);
+    font-weight: 800;
+    margin: 18px 14px 6px;
+    color: #fff;
+  }
+  .cele-sub {
+    font-size: clamp(18px, 5vw, 26px);
+    color: #ffd84d;
+    font-weight: 700;
+    margin-bottom: 26px;
+  }
+  @keyframes pop {
+    0% { transform: scale(0); }
+    70% { transform: scale(1.25); }
+    100% { transform: scale(1); }
+  }
+  @keyframes floaty {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-14px); }
+  }
+
+  /* Confetti */
+  .confetti {
+    position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 5;
+  }
+  .confetti span {
+    position: absolute; top: -10%;
+    font-size: clamp(22px, 6vw, 34px);
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(540deg); opacity: 1; }
+  }
+
+  /* ---------- Teaching screen ---------- */
+  #teachScreen { justify-content: flex-start; }
+  .teach-scroll {
+    width: 100%;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .equation {
+    font-size: clamp(44px, 13vw, 92px);
+    font-weight: 800;
+    text-align: center;
+    margin-top: clamp(20px, 7vw, 50px);
+  }
+  .equation .x { color: #7ad0ff; }
+  .equation .eq { color: #2bb673; }
+  .equation .prod { color: #ffd84d; }
+  .teach-line {
+    font-size: clamp(18px, 5vw, 26px);
+    color: #cfd2e0;
+    text-align: center;
+    margin: 14px 14px 0;
+    font-weight: 600;
+  }
+
+  /* Illustration */
+  .illo-caption {
+    font-size: clamp(18px, 5.2vw, 28px);
+    font-weight: 800;
+    text-align: center;
+    margin: 18px 10px 6px;
+    color: #fff;
+  }
+  .illo-caption .hl { color: #ffd84d; }
+  .illo {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-content: flex-start;
+    gap: clamp(8px, 2.5vw, 16px);
+    padding: 8px 4px 12px;
+  }
+  .group-box {
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(255,255,255,0.12);
+    border-radius: 18px;
+    padding: clamp(6px, 2vw, 12px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .group-label { font-size: clamp(20px, 6vw, 32px); line-height: 1; }
+  .group-items {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: clamp(2px, 1.2vw, 6px);
+    max-width: 6.2em;
+  }
+  .group-items.single { max-width: none; }
+  .obj { font-size: clamp(18px, 5.5vw, 30px); line-height: 1; animation: pop 0.4s ease backwards; }
+  .empty-note { font-size: clamp(13px, 3.6vw, 17px); color: #9aa0b5; font-weight: 700; }
+  .svg-group { width: clamp(110px, 30vw, 160px); height: clamp(110px, 30vw, 160px); }
+
+  /* Buttons */
+  .big-btn {
+    appearance: none; border: none;
+    width: 100%;
+    max-width: 480px;
+    border-radius: 20px;
+    padding: clamp(18px, 5.5vw, 26px) 18px;
+    font-size: clamp(20px, 6vw, 28px);
+    font-weight: 800;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: transform .06s ease, background .12s ease;
+  }
+  .big-btn:active { transform: scale(0.97); }
+  .btn-illo { background: #6a4bd6; color: #fff; margin-top: 8px; }
+  .btn-illo:active { background: #5a3fc0; }
+  .btn-next { background: #2bb673; color: #fff; }
+  .btn-next:active { background: #229c61; }
+  .btn-row {
+    flex: 0 0 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div class="points" aria-label="points"><span class="star">⭐</span><span class="num" id="pointsNum">0</span></div>
+
+<!-- ===== Screen 1: Problem ===== -->
+<section id="problemScreen" class="screen active">
+  <div class="problem-top">
+    <div class="problem" id="problemText"></div>
+    <div class="answer-display empty" id="answerDisplay">?</div>
+  </div>
+  <div class="keypad" id="keypad">
+    <button class="key" data-d="1">1</button>
+    <button class="key" data-d="2">2</button>
+    <button class="key" data-d="3">3</button>
+    <button class="key" data-d="4">4</button>
+    <button class="key" data-d="5">5</button>
+    <button class="key" data-d="6">6</button>
+    <button class="key" data-d="7">7</button>
+    <button class="key" data-d="8">8</button>
+    <button class="key" data-d="9">9</button>
+    <button class="key back" data-act="back" aria-label="delete">⌫</button>
+    <button class="key" data-d="0">0</button>
+    <button class="key check" data-act="check">Check</button>
+  </div>
+</section>
+
+<!-- ===== Screen 2: Celebration ===== -->
+<section id="celebrateScreen" class="screen">
+  <div class="cele-emoji" id="celeEmoji">🎉</div>
+  <div class="cele-msg" id="celeMsg">You got it, Avery!</div>
+  <div class="cele-sub" id="celeSub">+10 points</div>
+  <div class="btn-row">
+    <button class="big-btn btn-illo" id="celeIlloBtn">See the picture 🍪</button>
+    <button class="big-btn btn-next" id="celeNextBtn">Next ▶</button>
+  </div>
+</section>
+
+<!-- ===== Screen 3: Teaching ===== -->
+<section id="teachScreen" class="screen">
+  <div class="teach-scroll" id="teachScroll">
+    <div class="equation" id="equationText"></div>
+    <div class="teach-line">Let's see why — count the groups! 🤗</div>
+    <div class="illo-caption" id="illoCaption" style="display:none;"></div>
+    <div class="illo" id="illoArea"></div>
+  </div>
+  <div class="btn-row">
+    <button class="big-btn btn-illo" id="teachIlloBtn">Would you like an illustration?</button>
+    <button class="big-btn btn-next" id="teachNextBtn">Try the next one ▶</button>
+  </div>
+</section>
+
+<div class="confetti" id="confetti" aria-hidden="true"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- State & persistence ----------
+  var STORE_KEY = "avery_mult_v1";
+  var state = loadState();
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (raw) {
+        var s = JSON.parse(raw);
+        return {
+          points: s.points || 0,
+          correct: s.correct || 0
+        };
+      }
+    } catch (e) {}
+    return { points: 0, correct: 0 };
+  }
+  function saveState() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  // ---------- Difficulty ----------
+  // Product cap grows as Avery answers more correctly.
+  function currentCap() {
+    var c = state.correct;
+    if (c >= 15) return 100;
+    if (c >= 10) return 80;
+    if (c >= 5) return 60;
+    return 40;
+  }
+
+  // ---------- Problem generation ----------
+  var current = { a: 0, b: 0 };
+
+  function newProblem() {
+    var cap = currentCap();
+    var pairs = [];
+    for (var a = 0; a <= 10; a++) {
+      for (var b = 0; b <= 10; b++) {
+        if (a * b <= cap) pairs.push([a, b]);
+      }
+    }
+    // Lightly limit how often a zero factor shows up so practice stays varied.
+    var nonZero = pairs.filter(function (p) { return p[0] !== 0 && p[1] !== 0; });
+    var pool = (nonZero.length && Math.random() < 0.85) ? nonZero : pairs;
+    var pick = pool[Math.floor(Math.random() * pool.length)];
+    // Avoid repeating the exact same problem twice in a row when possible.
+    if (pool.length > 1 && pick[0] === current.a && pick[1] === current.b) {
+      pick = pool[Math.floor(Math.random() * pool.length)];
+    }
+    current = { a: pick[0], b: pick[1] };
+    typed = "";
+    renderProblem();
+  }
+
+  // ---------- Input ----------
+  var typed = "";
+  var answerDisplay = document.getElementById("answerDisplay");
+  var problemText = document.getElementById("problemText");
+
+  function renderProblem() {
+    problemText.innerHTML = current.a + ' <span class="x">×</span> ' + current.b;
+    renderTyped();
+  }
+  function renderTyped() {
+    if (typed === "") {
+      answerDisplay.textContent = "?";
+      answerDisplay.classList.add("empty");
+    } else {
+      answerDisplay.textContent = typed;
+      answerDisplay.classList.remove("empty");
+    }
+  }
+
+  function pressDigit(d) {
+    if (typed.length >= 3) return;
+    if (typed === "" && d === "0") { typed = "0"; renderTyped(); return; }
+    if (typed === "0") typed = "";
+    typed += d;
+    renderTyped();
+  }
+  function pressBack() {
+    typed = typed.slice(0, -1);
+    renderTyped();
+  }
+  function pressCheck() {
+    if (typed === "") return;
+    var ans = parseInt(typed, 10);
+    var product = current.a * current.b;
+    if (ans === product) {
+      onCorrect();
+    } else {
+      onWrong();
+    }
+  }
+
+  document.getElementById("keypad").addEventListener("click", function (e) {
+    var btn = e.target.closest("button");
+    if (!btn) return;
+    if (btn.dataset.d != null) pressDigit(btn.dataset.d);
+    else if (btn.dataset.act === "back") pressBack();
+    else if (btn.dataset.act === "check") pressCheck();
+  });
+
+  // Physical keyboard support (handy for testing / older kids on a laptop).
+  document.addEventListener("keydown", function (e) {
+    if (!document.getElementById("problemScreen").classList.contains("active")) return;
+    if (e.key >= "0" && e.key <= "9") pressDigit(e.key);
+    else if (e.key === "Backspace") pressBack();
+    else if (e.key === "Enter") pressCheck();
+  });
+
+  // ---------- Screen switching ----------
+  function show(id) {
+    var screens = document.querySelectorAll(".screen");
+    for (var i = 0; i < screens.length; i++) screens[i].classList.remove("active");
+    document.getElementById(id).classList.add("active");
+  }
+
+  // ---------- Correct flow ----------
+  var POINTS_PER = 10;
+  var celeEmojis = ["🎉", "🌟", "🦄", "🌈", "🎈", "⭐", "🏆", "💫"];
+  var celeMsgs = ["You got it, Avery!", "Amazing!", "Brilliant!", "Super star!", "You're a math wizard!", "Way to go!", "Fantastic!"];
+
+  function onCorrect() {
+    state.points += POINTS_PER;
+    state.correct += 1;
+    saveState();
+    updatePoints();
+    document.getElementById("celeEmoji").textContent = celeEmojis[Math.floor(Math.random() * celeEmojis.length)];
+    document.getElementById("celeMsg").textContent = celeMsgs[Math.floor(Math.random() * celeMsgs.length)];
+    document.getElementById("celeSub").textContent = "+" + POINTS_PER + " points";
+    show("celebrateScreen");
+    launchConfetti();
+    chime();
+  }
+
+  // ---------- Wrong flow ----------
+  function onWrong() {
+    var product = current.a * current.b;
+    document.getElementById("equationText").innerHTML =
+      current.a + ' <span class="x">×</span> ' + current.b +
+      ' <span class="eq">=</span> <span class="prod">' + product + '</span>';
+    // Reset illustration area for a fresh teaching moment.
+    document.getElementById("illoArea").innerHTML = "";
+    document.getElementById("illoCaption").style.display = "none";
+    document.getElementById("teachScroll").scrollTop = 0;
+    show("teachScreen");
+  }
+
+  function updatePoints() {
+    document.getElementById("pointsNum").textContent = state.points;
+  }
+
+  // ---------- Next buttons ----------
+  document.getElementById("teachNextBtn").addEventListener("click", function () {
+    newProblem(); show("problemScreen");
+  });
+  document.getElementById("celeNextBtn").addEventListener("click", function () {
+    newProblem(); show("problemScreen");
+  });
+  document.getElementById("teachIlloBtn").addEventListener("click", function () {
+    renderIllustration(document.getElementById("illoArea"), document.getElementById("illoCaption"));
+  });
+  document.getElementById("celeIlloBtn").addEventListener("click", function () {
+    // Reuse the teaching screen as the illustration viewer for a correct answer.
+    var product = current.a * current.b;
+    document.getElementById("equationText").innerHTML =
+      current.a + ' <span class="x">×</span> ' + current.b +
+      ' <span class="eq">=</span> <span class="prod">' + product + '</span>';
+    document.getElementById("illoArea").innerHTML = "";
+    document.getElementById("illoCaption").style.display = "none";
+    document.getElementById("teachScroll").scrollTop = 0;
+    show("teachScreen");
+    renderIllustration(document.getElementById("illoArea"), document.getElementById("illoCaption"));
+  });
+
+  // ============================================================
+  //  ILLUSTRATION ENGINE — "groups of the same thing"
+  //  Renders `first` groups, each holding `second` identical objects.
+  // ============================================================
+  var EMOJI_THEMES = [
+    { name: "cookies", container: "🍽️", object: "🍪", groupWord: "plate",   plural: "plates",   objWord: "cookies" },
+    { name: "apples",  container: "🧺", object: "🍎", groupWord: "basket",  plural: "baskets",  objWord: "apples" },
+    { name: "stars",   container: "🌌", object: "⭐", groupWord: "sky",     plural: "skies",    objWord: "stars" },
+    { name: "rainbow", container: "🌈", object: "✨", groupWord: "rainbow", plural: "rainbows", objWord: "sparkles" },
+    { name: "unicorn", container: "🦄", object: "💖", groupWord: "unicorn", plural: "unicorns", objWord: "hearts" },
+    { name: "horse",   container: "🐴", object: "🥕", groupWord: "horse",   plural: "horses",   objWord: "carrots" },
+    { name: "bows",    container: "🎀", object: "🎀", groupWord: "row",     plural: "rows",     objWord: "bows", noContainer: true },
+    { name: "flowers", container: "🪴", object: "🌸", groupWord: "garden",  plural: "gardens",  objWord: "flowers" }
+  ];
+
+  // SVG creature themes: `first` creatures each drawn with `second` parts.
+  var SVG_THEMES = ["spider", "flowerPetals", "car"];
+
+  function renderIllustration(area, captionEl) {
+    var a = current.a, b = current.b, product = a * b;
+    area.innerHTML = "";
+
+    // Caption
+    captionEl.style.display = "block";
+    captionEl.innerHTML =
+      '<span class="hl">' + a + '</span> groups of <span class="hl">' + b +
+      '</span> = <span class="hl">' + product + '</span> &nbsp;— count them!';
+
+    // Special teaching cases for zero.
+    if (a === 0) {
+      captionEl.innerHTML = '<span class="hl">0</span> groups — there is nothing to count. The answer is <span class="hl">0</span>! 🫙';
+      var note = document.createElement("div");
+      note.className = "empty-note";
+      note.style.fontSize = "clamp(20px,6vw,30px)";
+      note.style.padding = "30px 10px";
+      note.textContent = "Zero groups means zero things. 0 × " + b + " = 0";
+      area.appendChild(note);
+      return;
+    }
+
+    // Choose renderer: ~40% chance of an SVG creature theme, else emoji grid.
+    // SVG creatures stay clearly countable only for small part counts; for larger
+    // `second` (or zero), the emoji grid reads better, so gate the creatures.
+    var canSvg = b >= 1 && b <= 8;
+    var useSvg = canSvg && Math.random() < 0.4;
+    if (useSvg) {
+      renderSvgTheme(area, a, b, SVG_THEMES[Math.floor(Math.random() * SVG_THEMES.length)]);
+    } else {
+      renderEmojiTheme(area, a, b, EMOJI_THEMES[Math.floor(Math.random() * EMOJI_THEMES.length)]);
+    }
+  }
+
+  function renderEmojiTheme(area, a, b, theme) {
+    for (var g = 0; g < a; g++) {
+      var box = document.createElement("div");
+      box.className = "group-box";
+
+      if (!theme.noContainer) {
+        var label = document.createElement("div");
+        label.className = "group-label";
+        label.textContent = theme.container;
+        box.appendChild(label);
+      }
+
+      var items = document.createElement("div");
+      items.className = "group-items";
+      if (b === 0) {
+        var empty = document.createElement("div");
+        empty.className = "empty-note";
+        empty.textContent = "(empty)";
+        items.appendChild(empty);
+      } else {
+        for (var i = 0; i < b; i++) {
+          var o = document.createElement("span");
+          o.className = "obj";
+          o.textContent = theme.object;
+          o.style.animationDelay = (g * 0.04 + i * 0.03) + "s";
+          items.appendChild(o);
+        }
+      }
+      box.appendChild(items);
+      area.appendChild(box);
+    }
+  }
+
+  // ---------- SVG creatures ----------
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function svgEl(name, attrs) {
+    var el = document.createElementNS(SVGNS, name);
+    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+
+  function renderSvgTheme(area, a, b, kind) {
+    for (var g = 0; g < a; g++) {
+      var box = document.createElement("div");
+      box.className = "group-box";
+      var svg = svgEl("svg", { viewBox: "0 0 100 100", class: "svg-group" });
+      if (kind === "spider") drawSpider(svg, b);
+      else if (kind === "flowerPetals") drawFlower(svg, b);
+      else if (kind === "car") drawCar(svg, b);
+      box.appendChild(svg);
+      if (b === 0) {
+        var empty = document.createElement("div");
+        empty.className = "empty-note";
+        empty.textContent = "0 each";
+        box.appendChild(empty);
+      }
+      area.appendChild(box);
+    }
+  }
+
+  function drawSpider(svg, legs) {
+    // Legs first (so the body sits on top). Fan them evenly across the lower
+    // half so every leg is clearly separated and countable, like flower petals.
+    for (var i = 0; i < legs; i++) {
+      var theta = Math.PI * (i + 0.5) / legs;   // 0..PI, evenly spaced
+      var ex = 50 + Math.cos(theta) * 42;       // left (cos=+1) to right (cos=-1)
+      var ey = 50 + Math.sin(theta) * 36;       // always below the body center
+      var line = svgEl("line", {
+        x1: 50, y1: 50, x2: ex, y2: ey,
+        stroke: "#3a2a8c", "stroke-width": 3.4, "stroke-linecap": "round"
+      });
+      svg.appendChild(line);
+    }
+    // Body
+    svg.appendChild(svgEl("circle", { cx: 50, cy: 50, r: 19, fill: "#7a5cff" }));
+    svg.appendChild(svgEl("circle", { cx: 50, cy: 33, r: 12, fill: "#9b82ff" }));
+    // Eyes
+    svg.appendChild(svgEl("circle", { cx: 45, cy: 31, r: 2.6, fill: "#fff" }));
+    svg.appendChild(svgEl("circle", { cx: 55, cy: 31, r: 2.6, fill: "#fff" }));
+    svg.appendChild(svgEl("circle", { cx: 45, cy: 31, r: 1.2, fill: "#000" }));
+    svg.appendChild(svgEl("circle", { cx: 55, cy: 31, r: 1.2, fill: "#000" }));
+  }
+
+  function drawFlower(svg, petals) {
+    var cx = 50, cy = 48, R = 24;
+    var colors = ["#ff6fa5", "#ffd84d", "#7ad0ff", "#a06bff", "#ff9d5c", "#5cd6a0"];
+    for (var i = 0; i < petals; i++) {
+      var ang = (i / petals) * Math.PI * 2 - Math.PI / 2;
+      var px = cx + Math.cos(ang) * R;
+      var py = cy + Math.sin(ang) * R;
+      var petal = svgEl("ellipse", {
+        cx: px, cy: py, rx: 9, ry: 15,
+        fill: colors[i % colors.length],
+        transform: "rotate(" + (ang * 180 / Math.PI + 90) + " " + px + " " + py + ")"
+      });
+      svg.appendChild(petal);
+    }
+    svg.appendChild(svgEl("circle", { cx: cx, cy: cy, r: 11, fill: "#ffcf33" }));
+    // Stem
+    svg.appendChild(svgEl("rect", { x: 48, y: 60, width: 4, height: 30, fill: "#3fa45c", rx: 2 }));
+  }
+
+  function drawCar(svg, wheels) {
+    // Body
+    svg.appendChild(svgEl("rect", { x: 12, y: 38, width: 76, height: 24, rx: 8, fill: "#ff5c7a" }));
+    svg.appendChild(svgEl("rect", { x: 28, y: 24, width: 40, height: 20, rx: 7, fill: "#ff8aa0" }));
+    // Window
+    svg.appendChild(svgEl("rect", { x: 34, y: 28, width: 28, height: 13, rx: 4, fill: "#cdeaff" }));
+    // Wheels along the bottom — sized to fit the count so they never overlap,
+    // and centered evenly with clear gaps so each one is easy to count.
+    var n = Math.max(wheels, 0);
+    if (n > 0) {
+      var trackLeft = 18, trackRight = 82, track = trackRight - trackLeft;
+      var r = Math.min(9, (track / n) / 2 - 0.6);
+      for (var i = 0; i < n; i++) {
+        var x = trackLeft + track * ((i + 0.5) / n);
+        svg.appendChild(svgEl("circle", { cx: x, cy: 70, r: r, fill: "#222", stroke: "#555", "stroke-width": 2 }));
+        svg.appendChild(svgEl("circle", { cx: x, cy: 70, r: Math.max(1.4, r * 0.36), fill: "#bbb" }));
+      }
+    }
+  }
+
+  // ---------- Confetti ----------
+  var confettiEl = document.getElementById("confetti");
+  var confettiBits = ["🎉", "⭐", "🌈", "💖", "✨", "🎈", "🦄"];
+  function launchConfetti() {
+    confettiEl.innerHTML = "";
+    var count = 26;
+    for (var i = 0; i < count; i++) {
+      var s = document.createElement("span");
+      s.textContent = confettiBits[Math.floor(Math.random() * confettiBits.length)];
+      s.style.left = Math.random() * 100 + "vw";
+      var dur = 2.2 + Math.random() * 1.8;
+      s.style.animationDuration = dur + "s";
+      s.style.animationDelay = (Math.random() * 0.5) + "s";
+      confettiEl.appendChild(s);
+    }
+    // Clear after the longest animation finishes.
+    setTimeout(function () { confettiEl.innerHTML = ""; }, 4600);
+  }
+
+  // ---------- Gentle success chime (WebAudio, no asset files) ----------
+  var audioCtx = null;
+  function chime() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      var notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+      notes.forEach(function (f, idx) {
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = f;
+        var t0 = audioCtx.currentTime + idx * 0.12;
+        gain.gain.setValueAtTime(0, t0);
+        gain.gain.linearRampToValueAtTime(0.18, t0 + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.45);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(t0); osc.stop(t0 + 0.5);
+      });
+    } catch (e) {}
+  }
+
+  // ---------- Init ----------
+  updatePoints();
+  newProblem();
+})();
+</script>
+</body>
+</html>
