@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#000000">
-<title>Avery's Math</title>
+<title>Avery &amp; Julian's Math</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✖️</text></svg>">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✖️</text></svg>">
 <style>
@@ -44,9 +44,10 @@
   .map-tabs { margin: 8px 0 2px; }
   .seg-btn {
     appearance: none; border: none; background: transparent; color: #9aa0b5;
-    font-weight: 800; font-size: clamp(14px, 4vw, 18px); padding: 8px 16px;
+    font-weight: 800; font-size: clamp(12px, 3.4vw, 16px); padding: 8px 14px; white-space: nowrap;
     border-radius: 999px; cursor: pointer; touch-action: manipulation; transition: background .12s ease, color .12s ease;
   }
+  .map-tabs .seg-btn { font-size: clamp(14px, 4vw, 18px); padding: 8px 18px; }
   .seg-btn.active { background: #6a4bd6; color: #fff; }
   .seg-btn.add.active { background: #2bb673; color: #fff; }
   .tb-scoreline { display: flex; align-items: center; gap: 16px; }
@@ -177,8 +178,8 @@
 
 <div class="topbar" id="topbar" aria-hidden="true">
   <div class="mode-seg" aria-label="choose mode">
-    <button class="seg-btn" id="segMul" data-mode="multiply">✖️ Multiply</button>
-    <button class="seg-btn add" id="segAdd" data-mode="add">➕ Add</button>
+    <button class="seg-btn" id="segMul" data-mode="multiply">✖️ Avery · Multiply</button>
+    <button class="seg-btn add" id="segAdd" data-mode="add">➕ Julian · Add</button>
   </div>
   <div class="tb-scoreline">
     <span class="tb-score">⭐ <b id="scoreNum">0</b></span>
@@ -252,8 +253,8 @@
 <section id="mapScreen" class="screen">
   <div class="map-title" id="mapTitle">⭐ My Stars</div>
   <div class="map-tabs" aria-label="view mode">
-    <button class="seg-btn" id="mapTabMul" data-vm="multiply">✖️ Multiply</button>
-    <button class="seg-btn add" id="mapTabAdd" data-vm="add">➕ Add</button>
+    <button class="seg-btn" id="mapTabMul" data-vm="multiply">✖️ Avery</button>
+    <button class="seg-btn add" id="mapTabAdd" data-vm="add">➕ Julian</button>
   </div>
   <div class="map-sub" id="mapSub"></div>
   <div class="map-scroll"><div class="map-grid" id="mapGrid"></div></div>
@@ -305,18 +306,18 @@
 
   // ===================== Operation config (× and +) =====================
   var OPS = {
-    multiply: { symbol: "×", name: "Multiply",
+    multiply: { symbol: "×", name: "Multiply", child: "Avery",
       compute: function (a, b) { return a * b; },
       key: function (a, b) { return Math.min(a, b) + "x" + Math.max(a, b); },
       valid: function (a, b, cap) { return a * b <= cap; },
       caps: [[15,100],[10,80],[5,60],[0,40]],   // product cap by lifetime correct
       mValue: function (a, b) { return a * b; },
       reveal: renderMultReveal },
-    add: { symbol: "+", name: "Add",
+    add: { symbol: "+", name: "Add", child: "Julian",
       compute: function (a, b) { return a + b; },
       key: function (a, b) { return Math.min(a, b) + "+" + Math.max(a, b); },
       valid: function (a, b, cap) { return a + b <= cap; },
-      caps: [[15,20],[10,17],[5,13],[0,10]],     // sum cap by lifetime correct
+      caps: [[20,20],[15,18],[10,14],[5,10],[0,6]], // sum cap — extra-gentle start for the younger sibling
       mValue: function (a, b) { return a + b; },
       reveal: renderAddReveal }
   };
@@ -509,7 +510,7 @@
   // ===================== Correct flow + bonus =====================
   var POINTS_PER = 10, BONUS_POINTS = 25, BONUS_MIN_GAP = 6, BONUS_MEAN = 12, BONUS_HARD_CAP = 30;
   var celeEmojis = ["🎉", "🌟", "🦄", "🌈", "🎈", "⭐", "🏆", "💫"];
-  var celeMsgs = ["You got it, Avery!", "Amazing!", "Brilliant!", "Super star!", "You're a math wizard!", "Way to go!", "Fantastic!"];
+  var celeMsgs = ["You got it, {name}!", "Amazing, {name}!", "Brilliant!", "Super star!", "You're a math wizard, {name}!", "Way to go, {name}!", "Fantastic!"];
 
   function onCorrect() {
     var gained = POINTS_PER;
@@ -539,7 +540,7 @@
       burst.classList.add("gold");
     } else {
       emojiEl.textContent = celeEmojis[Math.floor(Math.random() * celeEmojis.length)];
-      msgEl.textContent = celeMsgs[Math.floor(Math.random() * celeMsgs.length)];
+      msgEl.textContent = celeMsgs[Math.floor(Math.random() * celeMsgs.length)].replace("{name}", op.child);
       msgEl.classList.remove("bonus");
       subEl.textContent = "+" + POINTS_PER + " points";
       burst.classList.remove("gold");
@@ -982,7 +983,7 @@
     }
     var mastered = 0;
     for (var k in vstore.facts) if (vstore.facts[k].box >= 4) mastered++;
-    document.getElementById("mapTitle").textContent = "⭐ My Stars — " + (mapView === "add" ? "Adding ➕" : "Multiplying ✖️");
+    document.getElementById("mapTitle").textContent = "⭐ " + OPS[mapView].child + "'s Stars";
     document.getElementById("mapSub").textContent = mastered + (mastered === 1 ? " fact" : " facts") + " mastered! Keep going ⭐";
     document.getElementById("mapTabMul").className = "seg-btn" + (mapView === "multiply" ? " active" : "");
     document.getElementById("mapTabAdd").className = "seg-btn add" + (mapView === "add" ? " active" : "");
