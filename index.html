@@ -6,11 +6,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#000000">
-<title>Avery's Multiplication</title>
+<title>Avery &amp; Julian's Math</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✖️</text></svg>">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✖️</text></svg>">
 <style>
-  :root { --gap: clamp(10px, 3vw, 18px); --hdr: 54px; }
+  :root { --gap: clamp(10px, 3vw, 18px); --hdr: 92px; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
     margin: 0; padding: 0; height: 100%;
@@ -28,24 +28,36 @@
   }
   .screen.active { display: flex; }
 
-  /* Top bar (score + best) — only on BETWEEN-problem screens, never during a question */
+  /* Top bar (mode toggle + score) — only on BETWEEN-problem screens, never during a question */
   .topbar {
     position: fixed; top: 0; left: 0; right: 0;
-    height: calc(max(env(safe-area-inset-top), 10px) + 44px);
-    padding-top: max(env(safe-area-inset-top), 10px);
-    display: none; align-items: center; justify-content: center; gap: 18px;
+    padding: max(env(safe-area-inset-top), 10px) 10px 8px;
+    display: none; flex-direction: column; align-items: center; justify-content: flex-start; gap: 6px;
     z-index: 60; font-weight: 800; pointer-events: none;
-    background: linear-gradient(#000 65%, rgba(0,0,0,0));
+    background: linear-gradient(#000 80%, rgba(0,0,0,0));
   }
   .topbar.show { display: flex; }
-  .topbar .tb-score { font-size: clamp(18px, 5vw, 24px); }
-  .topbar .tb-score b { color: #ffd84d; }
-  .topbar .tb-best { font-size: clamp(14px, 4vw, 18px); color: #9aa0b5; }
-  .topbar .tb-best b { color: #cfd2e0; }
-  /* Between-problem screens leave room for the bar */
-  #celebrateScreen, #teachScreen, #mapScreen {
-    padding-top: calc(max(env(safe-area-inset-top), 10px) + var(--hdr));
+  .mode-seg, .map-tabs {
+    display: flex; gap: 6px; pointer-events: auto;
+    background: #15151c; border: 2px solid #2c2c3a; border-radius: 999px; padding: 4px;
   }
+  .map-tabs { margin: 8px 0 2px; }
+  .seg-btn {
+    appearance: none; border: none; background: transparent; color: #9aa0b5;
+    font-weight: 800; font-size: clamp(12px, 3.4vw, 16px); padding: 8px 14px; white-space: nowrap;
+    border-radius: 999px; cursor: pointer; touch-action: manipulation; transition: background .12s ease, color .12s ease;
+  }
+  .map-tabs .seg-btn { font-size: clamp(14px, 4vw, 18px); padding: 8px 18px; }
+  .seg-btn.active { background: #6a4bd6; color: #fff; }
+  .seg-btn.add.active { background: #2bb673; color: #fff; }
+  .tb-scoreline { display: flex; align-items: center; gap: 16px; }
+  .tb-score { font-size: clamp(17px, 4.6vw, 22px); }
+  .tb-score b { color: #ffd84d; }
+  .tb-best { font-size: clamp(13px, 3.8vw, 17px); color: #9aa0b5; }
+  .tb-best b { color: #cfd2e0; }
+  /* Between-problem screens leave room for the bar */
+  #celebrateScreen, #teachScreen { padding-top: calc(max(env(safe-area-inset-top), 10px) + var(--hdr)); }
+  #mapScreen { padding-top: calc(max(env(safe-area-inset-top), 10px) + 12px); }
 
   /* ---------- Problem screen (focus-only) ---------- */
   #problemScreen { justify-content: space-between; }
@@ -55,6 +67,8 @@
   }
   .problem { font-size: clamp(56px, 17vw, 130px); font-weight: 800; letter-spacing: 2px; line-height: 1.1; text-align: center; }
   .problem .x { color: #7ad0ff; margin: 0 0.12em; }
+  .problem .op { color: #7ad0ff; margin: 0 0.12em; }
+  .problem .op.add { color: #7bd06a; }
   .answer-display {
     margin-top: clamp(14px, 4vw, 28px); min-height: 1.3em;
     font-size: clamp(40px, 12vw, 84px); font-weight: 800; color: #ffd84d;
@@ -118,6 +132,7 @@
   .teach-scroll { width: 100%; flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; align-items: center; }
   .equation { font-size: clamp(40px, 12vw, 84px); font-weight: 800; text-align: center; margin-top: clamp(6px, 2vw, 16px); }
   .equation .x { color: #7ad0ff; } .equation .eq { color: #2bb673; } .equation .prod { color: #ffd84d; }
+  .equation .op { color: #7ad0ff; } .equation .op.add { color: #7bd06a; }
 
   .illo-caption { font-size: clamp(18px, 5.2vw, 27px); font-weight: 800; text-align: center; margin: 16px 10px 6px; color: #fff; line-height: 1.25; }
   .illo-caption .hl { color: #ffd84d; }
@@ -134,6 +149,11 @@
   /* Grid / array (area-model) view */
   .grid { display: inline-grid; gap: clamp(3px, 1.4vw, 7px); padding: 8px; }
   .dot { width: clamp(13px, 4.6vw, 24px); height: clamp(13px, 4.6vw, 24px); border-radius: 50%; animation: pop 0.35s ease backwards; }
+
+  /* Addition "combine into one pile" view */
+  .pile { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: clamp(4px, 1.8vw, 9px); max-width: 560px; padding: 12px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.12); border-radius: 22px; }
+  .add-item { width: clamp(26px, 8vw, 40px); height: clamp(26px, 8vw, 40px); animation: pop 0.35s ease backwards; }
+  .plus-chip { font-size: clamp(24px, 7vw, 36px); font-weight: 800; color: #ffd84d; margin: 0 6px; }
 
   /* ---------- Mastery map screen ---------- */
   #mapScreen { justify-content: flex-start; }
@@ -157,8 +177,14 @@
 <body>
 
 <div class="topbar" id="topbar" aria-hidden="true">
-  <span class="tb-score">⭐ <b id="scoreNum">0</b></span>
-  <span class="tb-best">Best <b id="bestNum">0</b></span>
+  <div class="mode-seg" aria-label="choose mode">
+    <button class="seg-btn" id="segMul" data-mode="multiply">✖️ Avery · Multiply</button>
+    <button class="seg-btn add" id="segAdd" data-mode="add">➕ Julian · Add</button>
+  </div>
+  <div class="tb-scoreline">
+    <span class="tb-score">⭐ <b id="scoreNum">0</b></span>
+    <span class="tb-best">Best <b id="bestNum">0</b></span>
+  </div>
 </div>
 
 <!-- ===== Estimation (occasional, focus-only) ===== -->
@@ -225,7 +251,11 @@
 
 <!-- ===== Mastery map (between problems) ===== -->
 <section id="mapScreen" class="screen">
-  <div class="map-title">⭐ My Stars</div>
+  <div class="map-title" id="mapTitle">⭐ My Stars</div>
+  <div class="map-tabs" aria-label="view mode">
+    <button class="seg-btn" id="mapTabMul" data-vm="multiply">✖️ Avery</button>
+    <button class="seg-btn add" id="mapTabAdd" data-vm="add">➕ Julian</button>
+  </div>
   <div class="map-sub" id="mapSub"></div>
   <div class="map-scroll"><div class="map-grid" id="mapGrid"></div></div>
   <div class="btn-row"><button class="big-btn btn-next" id="mapBackBtn">◀ Back</button></div>
@@ -237,42 +267,80 @@
 (function () {
   "use strict";
 
-  // ===================== State & persistence =====================
-  var LS_KEY = "avery_mult_v3";   // persistent: best, correct (skill), facts (mastery)
-  var SS_KEY = "avery_mult_sess"; // session: points, sinceBonus, lastA, lastB, viewToggle
+  // ===================== State & persistence (separate per mode) =====================
+  var LS_KEY = "avery_app_v4";   // { mode, multiply:{best,correct,facts}, add:{best,correct,facts} }
+  var SS_KEY = "avery_sess_v4";  // { multiply:{points,sinceBonus,lastA,lastB,viewToggle}, add:{...} }
 
-  var store = loadStore();
-  var sess = loadSess();
+  function blankStore() { return { best: 0, correct: 0, facts: {} }; }
+  function normStore(s) { s = s || {}; return { best: s.best||0, correct: s.correct||0, facts: s.facts||{} }; }
+  function blankSess() { return { points: 0, sinceBonus: 0, lastA: -1, lastB: -1, viewToggle: 0 }; }
+  function normSess(s) { s = s || {}; return { points: s.points||0, sinceBonus: s.sinceBonus||0,
+    lastA: (s.lastA==null?-1:s.lastA), lastB: (s.lastB==null?-1:s.lastB), viewToggle: s.viewToggle||0 }; }
 
-  function loadStore() {
+  function loadData() {
     try {
       var raw = localStorage.getItem(LS_KEY);
-      if (raw) { var s = JSON.parse(raw); return { best: s.best||0, correct: s.correct||0, facts: s.facts||{} }; }
-      var old = localStorage.getItem("avery_mult_v1"); // one-time migration
-      if (old) { var o = JSON.parse(old); return { best: o.points||0, correct: o.correct||0, facts: {} }; }
+      if (raw) { var s = JSON.parse(raw);
+        return { mode: (s.mode==="add"?"add":"multiply"), multiply: normStore(s.multiply), add: normStore(s.add) }; }
+      var v3 = localStorage.getItem("avery_mult_v3"); // migrate prior multiplication progress
+      if (v3) { var o = JSON.parse(v3); return { mode: "multiply", multiply: normStore(o), add: blankStore() }; }
     } catch (e) {}
-    return { best: 0, correct: 0, facts: {} };
+    return { mode: "multiply", multiply: blankStore(), add: blankStore() };
   }
-  function saveStore() { try { localStorage.setItem(LS_KEY, JSON.stringify(store)); } catch (e) {} }
-
-  function loadSess() {
+  function loadSessAll() {
     try {
       var raw = sessionStorage.getItem(SS_KEY);
-      if (raw) { var s = JSON.parse(raw); return {
-        points: s.points||0, sinceBonus: s.sinceBonus||0,
-        lastA: (s.lastA==null?-1:s.lastA), lastB: (s.lastB==null?-1:s.lastB), viewToggle: s.viewToggle||0 }; }
+      if (raw) { var s = JSON.parse(raw); return { multiply: normSess(s.multiply), add: normSess(s.add) }; }
     } catch (e) {}
-    return { points: 0, sinceBonus: 0, lastA: -1, lastB: -1, viewToggle: 0 };
+    return { multiply: blankSess(), add: blankSess() };
   }
-  function saveSess() { try { sessionStorage.setItem(SS_KEY, JSON.stringify(sess)); } catch (e) {} }
+  function saveStore() { try { data.mode = mode; localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) {} }
+  function saveSess() { try { sessionStorage.setItem(SS_KEY, JSON.stringify(sessData)); } catch (e) {} }
+
+  var data = loadData();
+  var sessData = loadSessAll();
+  var mode = data.mode;
+  var store = data[mode];      // current mode's persistent store (a reference into data)
+  var sess = sessData[mode];   // current mode's session store (a reference into sessData)
+  var op;                      // current operation config (set at init / switchMode)
+
+  // ===================== Operation config (× and +) =====================
+  var OPS = {
+    multiply: { symbol: "×", name: "Multiply", child: "Avery",
+      compute: function (a, b) { return a * b; },
+      key: function (a, b) { return Math.min(a, b) + "x" + Math.max(a, b); },
+      valid: function (a, b, cap) { return a * b <= cap; },
+      caps: [[15,100],[10,80],[5,60],[0,40]],   // product cap by lifetime correct
+      mValue: function (a, b) { return a * b; },
+      reveal: renderMultReveal },
+    add: { symbol: "+", name: "Add", child: "Julian",
+      compute: function (a, b) { return a + b; },
+      key: function (a, b) { return Math.min(a, b) + "+" + Math.max(a, b); },
+      valid: function (a, b, cap) { return a + b <= cap; },
+      caps: [[20,20],[15,18],[10,14],[5,10],[0,6]], // sum cap — extra-gentle start for the younger sibling
+      mValue: function (a, b) { return a + b; },
+      reveal: renderAddReveal }
+  };
+
+  function switchMode(m) {
+    if (m === mode) return;
+    mode = m; data.mode = m; op = OPS[m];
+    store = data[m]; sess = sessData[m];
+    saveStore();
+    updateModeUI();
+    newProblem();
+    startProblemFlow();
+  }
+  function updateModeUI() {
+    document.getElementById("segMul").className = "seg-btn" + (mode === "multiply" ? " active" : "");
+    document.getElementById("segAdd").className = "seg-btn add" + (mode === "add" ? " active" : "");
+  }
 
   // ===================== Difficulty (skill persists) =====================
   function currentCap() {
-    var c = store.correct;
-    if (c >= 15) return 100;
-    if (c >= 10) return 80;
-    if (c >= 5) return 60;
-    return 40;
+    var c = store.correct, caps = op.caps;
+    for (var i = 0; i < caps.length; i++) if (c >= caps[i][0]) return caps[i][1];
+    return caps[caps.length - 1][1];
   }
 
   // ===================== Spaced repetition (real-time Leitner) =====================
@@ -302,7 +370,7 @@
     var cands = [];
     for (var lo = 0; lo <= 10; lo++)
       for (var hi = lo; hi <= 10; hi++)
-        if (lo * hi <= cap) cands.push({ lo: lo, hi: hi, key: lo + "x" + hi });
+        if (op.valid(lo, hi, cap)) cands.push({ lo: lo, hi: hi, key: op.key(lo, hi) });
 
     var due = [], unseen = [], seen = [];
     for (var i = 0; i < cands.length; i++) {
@@ -347,7 +415,7 @@
   var problemText = document.getElementById("problemText");
 
   function renderProblem() {
-    problemText.innerHTML = current.a + ' <span class="x">×</span> ' + current.b;
+    problemText.innerHTML = current.a + ' <span class="op' + (mode === "add" ? " add" : "") + '">' + op.symbol + '</span> ' + current.b;
     renderTyped();
   }
   function renderTyped() {
@@ -364,7 +432,7 @@
   function pressCheck() {
     if (typed === "") return;                       // must take a guess first
     var ans = parseInt(typed, 10);
-    var product = current.a * current.b;
+    var product = op.compute(current.a, current.b);
     var ok = (ans === product);
     scheduleFact(current.key, ok, (Date.now ? Date.now() : new Date().getTime()));
     if (ok) onCorrect(); else onWrong();
@@ -390,9 +458,9 @@
     var screens = document.querySelectorAll(".screen");
     for (var i = 0; i < screens.length; i++) screens[i].classList.remove("active");
     document.getElementById(id).classList.add("active");
-    var between = (id === "celebrateScreen" || id === "teachScreen" || id === "mapScreen");
+    var between = (id === "celebrateScreen" || id === "teachScreen");
     topbar.classList.toggle("show", between);
-    if (between) updateScore();
+    if (between) { updateScore(); updateModeUI(); }
   }
   function updateScore() {
     document.getElementById("scoreNum").textContent = sess.points;
@@ -401,7 +469,7 @@
 
   // ===================== Per-problem flow =====================
   function startProblemFlow() {
-    var p = current.a * current.b;
+    var p = op.compute(current.a, current.b);
     if (Math.random() < 0.2 && current.a > 0 && current.b > 0 && p >= 6) showEstimate();
     else show("problemScreen");
   }
@@ -419,10 +487,10 @@
     return T;
   }
   function showEstimate() {
-    var p = current.a * current.b, T = estThreshold(p);
+    var p = op.compute(current.a, current.b), T = estThreshold(p);
     current.estT = T;
     current.estSide = (p > T) ? "more" : "less";
-    estQ.innerHTML = 'Will <span class="x">' + current.a + ' × ' + current.b + '</span> be<br>more or less than <span class="t">' + T + '</span>?';
+    estQ.innerHTML = 'Will <span class="x">' + current.a + ' ' + op.symbol + ' ' + current.b + '</span> be<br>more or less than <span class="t">' + T + '</span>?';
     estMore.textContent = "▲  More than " + T;
     estLess.textContent = "▼  Less than " + T;
     estFeedback.textContent = "";
@@ -442,7 +510,7 @@
   // ===================== Correct flow + bonus =====================
   var POINTS_PER = 10, BONUS_POINTS = 25, BONUS_MIN_GAP = 6, BONUS_MEAN = 12, BONUS_HARD_CAP = 30;
   var celeEmojis = ["🎉", "🌟", "🦄", "🌈", "🎈", "⭐", "🏆", "💫"];
-  var celeMsgs = ["You got it, Avery!", "Amazing!", "Brilliant!", "Super star!", "You're a math wizard!", "Way to go!", "Fantastic!"];
+  var celeMsgs = ["You got it, {name}!", "Amazing, {name}!", "Brilliant!", "Super star!", "You're a math wizard, {name}!", "Way to go, {name}!", "Fantastic!"];
 
   function onCorrect() {
     var gained = POINTS_PER;
@@ -472,7 +540,7 @@
       burst.classList.add("gold");
     } else {
       emojiEl.textContent = celeEmojis[Math.floor(Math.random() * celeEmojis.length)];
-      msgEl.textContent = celeMsgs[Math.floor(Math.random() * celeMsgs.length)];
+      msgEl.textContent = celeMsgs[Math.floor(Math.random() * celeMsgs.length)].replace("{name}", op.child);
       msgEl.classList.remove("bonus");
       subEl.textContent = "+" + POINTS_PER + " points";
       burst.classList.remove("gold");
@@ -487,9 +555,10 @@
 
   // ===================== Wrong flow (teaching) =====================
   function setEquation() {
-    var p = current.a * current.b;
+    var p = op.compute(current.a, current.b);
     document.getElementById("equationText").innerHTML =
-      current.a + ' <span class="x">×</span> ' + current.b + ' <span class="eq">=</span> <span class="prod">' + p + '</span>';
+      current.a + ' <span class="op' + (mode === "add" ? " add" : "") + '">' + op.symbol + '</span> ' + current.b +
+      ' <span class="eq">=</span> <span class="prod">' + p + '</span>';
   }
   function onWrong() {
     setEquation();
@@ -516,7 +585,12 @@
   document.getElementById("celeMapBtn").addEventListener("click", openMap);
   document.getElementById("teachMapBtn").addEventListener("click", openMap);
   document.getElementById("mapBackBtn").addEventListener("click", function () { show(betweenScreen); });
-  function openMap() { renderMap(); show("mapScreen"); }
+  function openMap() { mapView = mode; renderMap(); show("mapScreen"); }
+
+  document.getElementById("segMul").addEventListener("click", function () { switchMode("multiply"); });
+  document.getElementById("segAdd").addEventListener("click", function () { switchMode("add"); });
+  document.getElementById("mapTabMul").addEventListener("click", function () { mapView = "multiply"; renderMap(); });
+  document.getElementById("mapTabAdd").addEventListener("click", function () { mapView = "add"; renderMap(); });
 
   // ===================== Illustration engine =====================
   // Each reveal ALTERNATES between a natural-world question and a tidy grid (area model).
@@ -553,13 +627,17 @@
   var rowColors = ["#ff6fa5","#ffd84d","#7ad0ff","#7bd06a","#a06bff","#ff9d5c","#5cd6a0","#ff8aa0","#6ec6ff","#c0a0ff"];
 
   function renderReveal() {
-    var a = current.a, b = current.b, p = a * b;
+    var a = current.a, b = current.b, p = op.compute(a, b);
     var cap = document.getElementById("illoCaption");
     var area = document.getElementById("illoArea");
     var ans = document.getElementById("illoAnswer");
     area.innerHTML = "";
     cap.style.display = "block"; ans.style.display = "block";
+    op.reveal(area, cap, ans, a, b, p);
+  }
 
+  // ---------- Multiplication reveal (groups): natural question ↔ tidy grid ----------
+  function renderMultReveal(area, cap, ans, a, b, p) {
     // Zero is a gentle teaching moment in either view.
     if (p === 0) {
       cap.innerHTML = (a === 0)
@@ -569,7 +647,6 @@
       sess.viewToggle = (sess.viewToggle + 1) % 2; saveSess();
       return;
     }
-
     var useGrid = (sess.viewToggle % 2) === 1;
     sess.viewToggle = (sess.viewToggle + 1) % 2; saveSess();
     if (useGrid) renderGrid(area, cap, ans, a, b, p);
@@ -630,6 +707,92 @@
       ans.innerHTML = '<span class="hl">' + a + '</span> ' + conts + ' × <span class="hl">' + b + '</span> ' +
         gt.objects + ' = <span class="hl">' + p + '</span> ' + gt.objects + '!';
     }
+  }
+
+  // ---------- Addition reveal (combining): combine-pile ↔ count-all strip ----------
+  var addThemes = [
+    { objs: "apples", emoji: "🍎", kind: "apple", cA: "#e8413a", cB: "#7bcf4a" },
+    { objs: "balloons", emoji: "🎈", kind: "balloon", cA: "#ff5c7a", cB: "#5aa9ff" },
+    { objs: "balls", emoji: "🔴", kind: "ball", cA: "#ffd24d", cB: "#ff7ac0" },
+    { objs: "stars", emoji: "⭐", kind: "star", cA: "#ffd24d", cB: "#9b8cff" },
+    { objs: "flowers", emoji: "🌸", kind: "flower", cA: "#ff7fb0", cB: "#ffd24d" },
+    { objs: "oranges", emoji: "🍊", kind: "ball", cA: "#ff9d3c", cB: "#ffd24d" }
+  ];
+
+  function renderAddReveal(area, cap, ans, a, b, p) {
+    var useStrip = (sess.viewToggle % 2) === 1;
+    sess.viewToggle = (sess.viewToggle + 1) % 2; saveSess();
+    if (useStrip) renderAddStrip(area, cap, ans, a, b, p);
+    else renderAddPile(area, cap, ans, a, b, p);
+  }
+
+  function addCaption(a, b, objs, emoji) {
+    if (b === 0) return '<span class="hl">' + a + '</span> ' + objs + ' and <span class="hl">0</span> more — still <span class="hl">' + a + '</span>! ' + emoji;
+    if (a === 0) return '<span class="hl">0</span> ' + objs + ' and <span class="hl">' + b + '</span> more makes <span class="hl">' + b + '</span>! ' + emoji;
+    return '<span class="hl">' + a + '</span> ' + objs + ' and <span class="hl">' + b + '</span> more ' + objs + ' — count them all! ' + emoji;
+  }
+
+  function renderAddPile(area, cap, ans, a, b, p) {
+    var th = addThemes[Math.floor(Math.random() * addThemes.length)];
+    cap.innerHTML = addCaption(a, b, th.objs, th.emoji);
+    var pile = document.createElement("div"); pile.className = "pile";
+    var i;
+    for (i = 0; i < a; i++) pile.appendChild(addItem(th.kind, th.cA, i));
+    if (a > 0 && b > 0) { var plus = document.createElement("span"); plus.className = "plus-chip"; plus.textContent = "+"; pile.appendChild(plus); }
+    for (i = 0; i < b; i++) pile.appendChild(addItem(th.kind, th.cB, a + i));
+    area.appendChild(pile);
+    ans.innerHTML = '<span class="hl">' + a + '</span> + <span class="hl">' + b + '</span> = <span class="hl">' + p + '</span> ' + th.objs + '!';
+  }
+
+  function renderAddStrip(area, cap, ans, a, b, p) {
+    var cA = "#ff6fa5", cB = "#7ad0ff";
+    cap.innerHTML = (a === 0 || b === 0)
+      ? addCaption(a, b, "dots", "🔵")
+      : '<span class="hl">' + a + '</span> and <span class="hl">' + b + '</span> more makes <span class="hl">' + p + '</span> — count them all! 🔵';
+    var g = document.createElement("div"); g.className = "grid";
+    g.style.gridTemplateColumns = "repeat(" + Math.min(Math.max(p, 1), 10) + ", 1fr)";
+    for (var i = 0; i < p; i++) {
+      var d = document.createElement("span"); d.className = "dot";
+      d.style.background = (i < a) ? cA : cB;
+      d.style.animationDelay = (i * 0.03) + "s";
+      g.appendChild(d);
+    }
+    area.appendChild(g);
+    ans.innerHTML = '<span class="hl">' + a + '</span> + <span class="hl">' + b + '</span> = <span class="hl">' + p + '</span>';
+  }
+
+  function addItem(kind, color, idx) {
+    var svg = svgEl("svg", { viewBox: "0 0 24 24", "class": "add-item" });
+    svg.style.animationDelay = (idx * 0.03) + "s";
+    if (kind === "apple") {
+      svg.appendChild(svgEl("circle", { cx: 12, cy: 14, r: 8, fill: color }));
+      svg.appendChild(svgEl("rect", { x: 11, y: 3, width: 2, height: 5, rx: 1, fill: "#7a4a1d" }));
+      svg.appendChild(svgEl("ellipse", { cx: 16, cy: 5, rx: 3, ry: 1.8, fill: "#4caf50", transform: "rotate(-25 16 5)" }));
+      svg.appendChild(svgEl("ellipse", { cx: 9, cy: 11, rx: 2, ry: 3, fill: "rgba(255,255,255,.5)" }));
+    } else if (kind === "balloon") {
+      svg.appendChild(svgEl("path", { d: "M12 19 q-1 2 0 4", stroke: "#999", "stroke-width": 1, fill: "none" }));
+      svg.appendChild(svgEl("ellipse", { cx: 12, cy: 11, rx: 7.5, ry: 9, fill: color }));
+      svg.appendChild(svgEl("polygon", { points: "12,20 10,18 14,18", fill: color }));
+      svg.appendChild(svgEl("ellipse", { cx: 9.5, cy: 8, rx: 2, ry: 3, fill: "rgba(255,255,255,.45)" }));
+    } else if (kind === "star") {
+      var pts = [], cx = 12, cy = 12, R = 10, r = 4.4;
+      for (var k = 0; k < 5; k++) {
+        var ao = -Math.PI/2 + k*2*Math.PI/5, ai = ao + Math.PI/5;
+        pts.push((cx+Math.cos(ao)*R).toFixed(1)+","+(cy+Math.sin(ao)*R).toFixed(1));
+        pts.push((cx+Math.cos(ai)*r).toFixed(1)+","+(cy+Math.sin(ai)*r).toFixed(1));
+      }
+      svg.appendChild(svgEl("polygon", { points: pts.join(" "), fill: color }));
+    } else if (kind === "flower") {
+      for (var m = 0; m < 6; m++) {
+        var ang = m * Math.PI / 3, px = 12 + Math.cos(ang) * 6, py = 12 + Math.sin(ang) * 6;
+        svg.appendChild(svgEl("ellipse", { cx: px, cy: py, rx: 3.4, ry: 5, fill: color, transform: "rotate(" + (ang*180/Math.PI+90) + " " + px + " " + py + ")" }));
+      }
+      svg.appendChild(svgEl("circle", { cx: 12, cy: 12, r: 3.4, fill: "#ffd24d" }));
+    } else { // ball
+      svg.appendChild(svgEl("circle", { cx: 12, cy: 12, r: 9, fill: color }));
+      svg.appendChild(svgEl("ellipse", { cx: 9, cy: 9, rx: 2.4, ry: 3.4, fill: "rgba(255,255,255,.5)" }));
+    }
+    return svg;
   }
 
   // ===================== SVG helpers & creatures =====================
@@ -803,22 +966,27 @@
     svg.appendChild(svgEl("circle", { cx: x2, cy: y2, r: r * 0.5, fill: dark }));
   }
 
-  // ===================== Mastery map =====================
+  // ===================== Mastery map (per mode) =====================
+  var mapView = "multiply";
   function renderMap() {
+    var vop = OPS[mapView], vstore = data[mapView];
     var grid = document.getElementById("mapGrid"); grid.innerHTML = "";
     var palette = ["#4a3a5a", "#6a4bd6", "#4f7fd0", "#3fa45c", "#7bd06a", "#ffd84d"];
     for (var a = 1; a <= 10; a++) {
       for (var b = 1; b <= 10; b++) {
-        var f = store.facts[factKey(a, b)];
+        var f = vstore.facts[vop.key(a, b)];
         var cell = document.createElement("div"); cell.className = "map-cell";
         cell.style.background = f ? palette[Math.min(f.box, 5)] : "#23232b";
-        cell.textContent = a * b;
+        cell.textContent = vop.mValue(a, b);
         grid.appendChild(cell);
       }
     }
     var mastered = 0;
-    for (var k in store.facts) if (store.facts[k].box >= 4) mastered++;
+    for (var k in vstore.facts) if (vstore.facts[k].box >= 4) mastered++;
+    document.getElementById("mapTitle").textContent = "⭐ " + OPS[mapView].child + "'s Stars";
     document.getElementById("mapSub").textContent = mastered + (mastered === 1 ? " fact" : " facts") + " mastered! Keep going ⭐";
+    document.getElementById("mapTabMul").className = "seg-btn" + (mapView === "multiply" ? " active" : "");
+    document.getElementById("mapTabAdd").className = "seg-btn add" + (mapView === "add" ? " active" : "");
   }
 
   // ===================== Confetti =====================
@@ -863,6 +1031,8 @@
   }
 
   // ===================== Init =====================
+  op = OPS[mode];
+  updateModeUI();
   updateScore();
   newProblem();
   startProblemFlow();
