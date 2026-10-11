@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#000000">
+<title>5th Grade Math</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧮</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧮</text></svg>">
+<style>
+  :root { --gap: clamp(10px, 3vw, 18px); --hdr: 92px; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #000; color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  body { overflow: hidden; }
+
+  .screen {
+    position: fixed; inset: 0;
+    display: none; flex-direction: column; align-items: center;
+    padding: max(env(safe-area-inset-top), 12px) 14px max(env(safe-area-inset-bottom), 14px);
+  }
+  .screen.active { display: flex; }
+
+  /* Top bar (mode toggle + score) — only on BETWEEN-problem screens, never during a question */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: max(env(safe-area-inset-top), 10px) 10px 8px;
+    display: none; flex-direction: column; align-items: center; justify-content: flex-start; gap: 6px;
+    z-index: 60; font-weight: 800; pointer-events: none;
+    background: linear-gradient(#000 80%, rgba(0,0,0,0));
+  }
+  .topbar.show { display: flex; }
+  .mode-seg, .map-tabs {
+    display: flex; gap: 6px; pointer-events: auto;
+    background: #15151c; border: 2px solid #2c2c3a; border-radius: 999px; padding: 4px;
+  }
+  .map-tabs { margin: 8px 0 2px; }
+  .seg-btn {
+    appearance: none; border: none; background: transparent; color: #9aa0b5;
+    font-weight: 800; font-size: clamp(12px, 3.4vw, 16px); padding: 8px 14px; white-space: nowrap;
+    border-radius: 999px; cursor: pointer; touch-action: manipulation; transition: background .12s ease, color .12s ease;
+  }
+  .map-tabs .seg-btn { font-size: clamp(14px, 4vw, 18px); padding: 8px 18px; }
+  .seg-btn.active { background: #6a4bd6; color: #fff; }
+  .seg-btn.add.active { background: #2bb673; color: #fff; }
+  .tb-scoreline { display: flex; align-items: center; gap: 16px; }
+  .tb-score { font-size: clamp(17px, 4.6vw, 22px); }
+  .tb-score b { color: #ffd84d; }
+  .tb-best { font-size: clamp(13px, 3.8vw, 17px); color: #9aa0b5; }
+  .tb-best b { color: #cfd2e0; }
+  /* Between-problem screens leave room for the bar */
+  #celebrateScreen, #teachScreen { padding-top: calc(max(env(safe-area-inset-top), 10px) + var(--hdr)); }
+  #mapScreen { padding-top: calc(max(env(safe-area-inset-top), 10px) + 12px); }
+
+  /* ---------- Problem screen (focus-only) ---------- */
+  #problemScreen { justify-content: space-between; }
+  .problem-top {
+    flex: 1 1 auto; width: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0;
+  }
+  .problem { font-size: clamp(56px, 17vw, 130px); font-weight: 800; letter-spacing: 2px; line-height: 1.1; text-align: center; }
+  .problem .x { color: #7ad0ff; margin: 0 0.12em; }
+  .problem .op { color: #7ad0ff; margin: 0 0.12em; }
+  .problem .op.add { color: #7bd06a; }
+  .answer-display {
+    margin-top: clamp(14px, 4vw, 28px); min-height: 1.3em;
+    font-size: clamp(40px, 12vw, 84px); font-weight: 800; color: #ffd84d;
+    border-bottom: 4px solid #33333f; min-width: 2.2em; text-align: center; padding: 0 0.2em 4px;
+  }
+  .answer-display.empty { color: #555; }
+  .guess-hint { font-size: clamp(14px, 4vw, 18px); color: #8a8f9e; margin-top: 12px; font-weight: 600; }
+
+  /* Keypad */
+  .keypad { flex: 0 0 auto; width: 100%; max-width: 480px; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap); margin-top: var(--gap); }
+  .key {
+    appearance: none; border: none; background: #1c1c26; color: #fff;
+    font-size: clamp(28px, 8vw, 40px); font-weight: 700; border-radius: 18px;
+    padding: clamp(14px, 4.5vw, 26px) 0; cursor: pointer;
+    transition: transform .06s ease, background .12s ease; touch-action: manipulation;
+  }
+  .key:active { transform: scale(0.94); background: #2a2a3a; }
+  .key.back { background: #2a2230; color: #ffb3c7; }
+  .key.check { background: #2bb673; color: #fff; font-weight: 800; font-size: clamp(22px, 6.5vw, 32px); }
+  .key.check:active { background: #229c61; }
+
+  /* ---------- Estimation screen (focus-only) ---------- */
+  #estimateScreen { justify-content: center; text-align: center; }
+  .est-q { font-size: clamp(26px, 7.5vw, 44px); font-weight: 800; margin: 0 14px 10px; line-height: 1.15; }
+  .est-q .x { color: #7ad0ff; } .est-q .t { color: #ffd84d; }
+  .est-sub { font-size: clamp(16px, 4.5vw, 20px); color: #cfd2e0; margin-bottom: 26px; font-weight: 600; }
+  .est-btns { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 14px; }
+  .est-btn { appearance: none; border: none; border-radius: 20px; padding: clamp(20px, 6vw, 32px); font-size: clamp(22px, 6.5vw, 30px); font-weight: 800; color: #fff; cursor: pointer; touch-action: manipulation; transition: transform .06s ease; }
+  .est-btn:active { transform: scale(0.97); }
+  .est-more { background: #3f7fd6; } .est-less { background: #d6743f; }
+  .est-feedback { min-height: 1.5em; margin-top: 20px; font-size: clamp(18px, 5vw, 24px); font-weight: 800; color: #7bd06a; }
+
+  /* ---------- Celebration screen ---------- */
+  #celebrateScreen { justify-content: center; text-align: center; }
+  .burst {
+    position: absolute; top: 50%; left: 50%; width: min(125vw, 560px); height: min(125vw, 560px);
+    transform: translate(-50%, -56%) scale(.2); border-radius: 50%; pointer-events: none; opacity: 0; z-index: 0;
+    background: repeating-conic-gradient(from 0deg, rgba(255,216,77,.18) 0deg, rgba(255,216,77,0) 7deg, rgba(255,216,77,0) 14deg);
+  }
+  .burst.gold { background: repeating-conic-gradient(from 0deg, rgba(255,196,0,.36) 0deg, rgba(255,120,0,0) 6deg, rgba(255,196,0,0) 12deg); }
+  .burst.go { animation: burst 1.1s ease-out; }
+  @keyframes burst {
+    0% { opacity: 0; transform: translate(-50%,-56%) scale(.2) rotate(0deg); }
+    25% { opacity: .95; }
+    100% { opacity: 0; transform: translate(-50%,-56%) scale(1.15) rotate(45deg); }
+  }
+  .cele-emoji { position: relative; z-index: 1; font-size: clamp(80px, 26vw, 170px); animation: pop 0.6s ease, wiggle 1.6s ease-in-out infinite 0.6s; }
+  .cele-msg { position: relative; z-index: 1; font-size: clamp(30px, 8.5vw, 50px); font-weight: 800; margin: 18px 14px 6px; color: #fff; }
+  .cele-msg.bonus { color: #ffd84d; text-shadow: 0 0 18px rgba(255,216,77,.5); }
+  .cele-sub { position: relative; z-index: 1; font-size: clamp(18px, 5vw, 26px); font-weight: 700; color: #ffd84d; margin-bottom: 26px; }
+  @keyframes pop { 0% { transform: scale(0);} 70% { transform: scale(1.25);} 100% { transform: scale(1);} }
+  @keyframes wiggle { 0%,100% { transform: translateY(0) rotate(-4deg);} 50% { transform: translateY(-14px) rotate(4deg);} }
+
+  /* Confetti */
+  .confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 5; }
+  .confetti span { position: absolute; top: -10%; font-size: clamp(22px, 6vw, 34px); animation: fall linear forwards; }
+  @keyframes fall { 0% { transform: translateY(-12vh) rotate(0deg);} 100% { transform: translateY(112vh) rotate(560deg);} }
+
+  /* ---------- Teaching screen ---------- */
+  #teachScreen { justify-content: flex-start; }
+  .teach-scroll { width: 100%; flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; align-items: center; }
+  .equation { font-size: clamp(40px, 12vw, 84px); font-weight: 800; text-align: center; margin-top: clamp(6px, 2vw, 16px); }
+  .equation .x { color: #7ad0ff; } .equation .eq { color: #2bb673; } .equation .prod { color: #ffd84d; }
+  .equation .op { color: #7ad0ff; } .equation .op.add { color: #7bd06a; }
+
+  .illo-caption { font-size: clamp(18px, 5.2vw, 27px); font-weight: 800; text-align: center; margin: 16px 10px 6px; color: #fff; line-height: 1.25; }
+  .illo-caption .hl { color: #ffd84d; }
+  .illo-answer { font-size: clamp(18px, 5vw, 26px); font-weight: 800; text-align: center; margin: 8px 12px 4px; color: #fff; }
+  .illo-answer .hl { color: #ffd84d; }
+  .illo { width: 100%; max-width: 640px; display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; gap: clamp(8px, 2.5vw, 16px); padding: 8px 4px 12px; }
+  .group-box { background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.12); border-radius: 18px; padding: clamp(6px, 2vw, 12px); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .group-label { font-size: clamp(20px, 6vw, 32px); line-height: 1; }
+  .group-items { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(2px, 1.2vw, 6px); max-width: 6.2em; }
+  .obj { font-size: clamp(18px, 5.5vw, 30px); line-height: 1; animation: pop 0.4s ease backwards; }
+  .empty-note { font-size: clamp(13px, 3.6vw, 17px); color: #9aa0b5; font-weight: 700; }
+  .svg-group { width: clamp(108px, 29vw, 156px); height: clamp(108px, 29vw, 156px); }
+
+  /* Grid / array (area-model) view */
+  .grid { display: inline-grid; gap: clamp(3px, 1.4vw, 7px); padding: 8px; }
+  .dot { width: clamp(13px, 4.6vw, 24px); height: clamp(13px, 4.6vw, 24px); border-radius: 50%; animation: pop 0.35s ease backwards; }
+
+  /* Addition "combine into one pile" view */
+  .pile { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: clamp(4px, 1.8vw, 9px); max-width: 560px; padding: 12px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.12); border-radius: 22px; }
+  .add-item { width: clamp(26px, 8vw, 40px); height: clamp(26px, 8vw, 40px); animation: pop 0.35s ease backwards; }
+  .plus-chip { font-size: clamp(24px, 7vw, 36px); font-weight: 800; color: #ffd84d; margin: 0 6px; }
+
+  /* ---------- Mastery map screen ---------- */
+  #mapScreen { justify-content: flex-start; }
+  .map-title { font-size: clamp(26px, 7vw, 38px); font-weight: 800; margin-top: 4px; }
+  .map-sub { font-size: clamp(15px, 4vw, 19px); color: #ffd84d; font-weight: 700; margin: 6px 0 12px; }
+  .map-scroll { flex: 1 1 auto; width: 100%; overflow: auto; display: flex; justify-content: center; }
+  .map-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; width: 100%; max-width: 440px; align-content: start; }
+  .map-cell { aspect-ratio: 1 / 1; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: clamp(9px, 2.6vw, 13px); font-weight: 700; color: rgba(255,255,255,0.9); }
+
+  /* Buttons */
+  .big-btn { appearance: none; border: none; width: 100%; max-width: 480px; border-radius: 20px; padding: clamp(16px, 5vw, 24px) 18px; font-size: clamp(20px, 6vw, 28px); font-weight: 800; cursor: pointer; touch-action: manipulation; transition: transform .06s ease, background .12s ease; }
+  .big-btn:active { transform: scale(0.97); }
+  .btn-illo { background: #6a4bd6; color: #fff; }
+  .btn-illo:active { background: #5a3fc0; }
+  .btn-next { background: #2bb673; color: #fff; }
+  .btn-next:active { background: #229c61; }
+  .btn-map { background: #2a2a3a; color: #ffd84d; font-size: clamp(16px, 4.6vw, 20px); padding: clamp(11px, 3.4vw, 15px) 18px; }
+  .btn-row { flex: 0 0 auto; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 10px; }
+
+  /* ===== Grade 5 additions ===== */
+  .hl { color: #ffd84d; }
+  .seg-btn.m-ops.active { background: #6a4bd6; color: #fff; }
+  .seg-btn.m-md.active { background: #3f7fd6; color: #fff; }
+  .seg-btn.m-as.active { background: #2bb673; color: #fff; }
+  .seg-btn.m-word.active { background: #d6743f; color: #fff; }
+  .mode-seg { gap: 3px; padding: 3px; }
+  .mode-seg .seg-btn { font-size: clamp(11px, 3.3vw, 15px); padding: 8px clamp(8px, 2.6vw, 13px); }
+  .map-tabs { flex-wrap: wrap; justify-content: center; }
+  .map-tabs .seg-btn { font-size: clamp(12px, 3.4vw, 16px); padding: 7px 12px; }
+
+  .problem.mid { font-size: clamp(40px, 12vw, 100px); }
+  .problem.expr { font-size: clamp(30px, 8.4vw, 64px); line-height: 1.3; padding: 0 8px; letter-spacing: 0; }
+  .problem.word { font-size: clamp(19px, 5.3vw, 30px); line-height: 1.4; font-weight: 700; padding: 0 10px; max-width: 640px; letter-spacing: 0; text-align: left; }
+  .problem .br { color: #8a8f9e; }
+  .problem .num, .equation .num { color: #ffd84d; font-weight: 800; }
+
+  .equation.med { font-size: clamp(28px, 8vw, 56px); }
+  .equation.small { font-size: clamp(22px, 6vw, 40px); }
+  .equation .br { color: #8a8f9e; }
+  .equation.word { font-size: clamp(17px, 4.7vw, 24px); font-weight: 700; text-align: left; padding: 0 10px; max-width: 640px; line-height: 1.4; }
+  .wp-ans { font-size: clamp(22px, 6.4vw, 34px); font-weight: 800; margin-top: 12px; text-align: center; }
+
+  .steps { width: 100%; max-width: 640px; display: flex; flex-direction: column; gap: 10px; padding: 8px 4px 14px; }
+  .step { background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 10px 14px; animation: pop 0.35s ease backwards; text-align: left; }
+  .step .lab { font-size: clamp(13px, 3.6vw, 16px); color: #9aa0b5; font-weight: 800; letter-spacing: .3px; }
+  .step .calc { font-size: clamp(18px, 5vw, 26px); font-weight: 800; color: #fff; margin-top: 2px; line-height: 1.3; }
+  .step .calc.note-t { font-size: clamp(15px, 4.2vw, 19px); font-weight: 700; color: #e6e8f2; margin-top: 0; }
+  .step .state { font-size: clamp(16px, 4.4vw, 22px); font-weight: 700; color: #cfd2e0; margin-top: 4px; line-height: 1.3; }
+  .step.note { border-color: #6a4bd6; background: rgba(106,75,214,0.15); }
+  .step .br { color: #8a8f9e; }
+  .step .op { color: #7ad0ff; } .step .op.add { color: #7bd06a; }
+
+  .skill-list { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 8px; padding-bottom: 10px; }
+  .skill-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #15151c; border: 2px solid #2c2c3a; border-radius: 14px; padding: 10px 12px; text-align: left; }
+  .skill-row.locked { opacity: .45; }
+  .skill-name { font-size: clamp(14px, 4vw, 18px); font-weight: 700; color: #fff; }
+  .skill-sub { font-size: clamp(11px, 3.1vw, 13px); color: #8a8f9e; font-weight: 600; margin-top: 2px; }
+  .skill-meter { display: flex; gap: 4px; flex: 0 0 auto; }
+  .skill-pip { width: clamp(14px, 4vw, 20px); height: clamp(14px, 4vw, 20px); border-radius: 6px; background: #23232b; }
+</style>
+</head>
+<body>
+
+<div class="topbar" id="topbar" aria-hidden="true">
+  <div class="mode-seg" id="modeSeg" aria-label="choose mode">
+    <button class="seg-btn m-ops" data-mode="ops">( ) Order</button>
+    <button class="seg-btn m-md" data-mode="md">× ÷</button>
+    <button class="seg-btn m-as" data-mode="as">+ −</button>
+    <button class="seg-btn m-word" data-mode="word">📖 Words</button>
+  </div>
+  <div class="tb-scoreline">
+    <span class="tb-score">⭐ <b id="scoreNum">0</b></span>
+    <span class="tb-best">Best <b id="bestNum">0</b></span>
+  </div>
+</div>
+
+<!-- ===== Estimation (occasional, focus-only) ===== -->
+<section id="estimateScreen" class="screen">
+  <div class="est-q" id="estQ"></div>
+  <div class="est-sub">Just your best estimate — no need to be exact!</div>
+  <div class="est-btns">
+    <button class="est-btn est-more" data-side="more" id="estMore"></button>
+    <button class="est-btn est-less" data-side="less" id="estLess"></button>
+  </div>
+  <div class="est-feedback" id="estFeedback"></div>
+</section>
+
+<!-- ===== Problem (focus-only) ===== -->
+<section id="problemScreen" class="screen">
+  <div class="problem-top">
+    <div class="problem" id="problemText"></div>
+    <div class="answer-display empty" id="answerDisplay">?</div>
+    <div class="guess-hint" id="guessHint">Use scratch paper if you need it ✏️</div>
+  </div>
+  <div class="keypad" id="keypad">
+    <button class="key" data-d="1">1</button>
+    <button class="key" data-d="2">2</button>
+    <button class="key" data-d="3">3</button>
+    <button class="key" data-d="4">4</button>
+    <button class="key" data-d="5">5</button>
+    <button class="key" data-d="6">6</button>
+    <button class="key" data-d="7">7</button>
+    <button class="key" data-d="8">8</button>
+    <button class="key" data-d="9">9</button>
+    <button class="key back" data-act="back" aria-label="delete">⌫</button>
+    <button class="key" data-d="0">0</button>
+    <button class="key check" data-act="check">Check</button>
+  </div>
+</section>
+
+<!-- ===== Celebration (between problems) ===== -->
+<section id="celebrateScreen" class="screen">
+  <div class="burst" id="burst"></div>
+  <div class="cele-emoji" id="celeEmoji">🎉</div>
+  <div class="cele-msg" id="celeMsg">You got it!</div>
+  <div class="cele-sub" id="celeSub">+10 points</div>
+  <div class="btn-row">
+    <button class="big-btn btn-illo" id="celeIlloBtn">See the steps ✨</button>
+    <button class="big-btn btn-map" id="celeMapBtn">⭐ My Stars</button>
+    <button class="big-btn btn-next" id="celeNextBtn">Next ▶</button>
+  </div>
+</section>
+
+<!-- ===== Teaching / worked steps (between problems) ===== -->
+<section id="teachScreen" class="screen">
+  <div class="teach-scroll" id="teachScroll">
+    <div class="equation" id="equationText"></div>
+    <div class="illo-caption" id="illoCaption" style="display:none;"></div>
+    <div class="illo" id="illoArea"></div>
+    <div class="illo-answer" id="illoAnswer" style="display:none;"></div>
+  </div>
+  <div class="btn-row">
+    <button class="big-btn btn-illo" id="teachIlloBtn">Show me the steps ✨</button>
+    <button class="big-btn btn-map" id="teachMapBtn">⭐ My Stars</button>
+    <button class="big-btn btn-next" id="teachNextBtn">Try the next one ▶</button>
+  </div>
+</section>
+
+<!-- ===== Skill map (between problems) ===== -->
+<section id="mapScreen" class="screen">
+  <div class="map-title" id="mapTitle">⭐ My Stars</div>
+  <div class="map-tabs" id="mapTabs" aria-label="view mode">
+    <button class="seg-btn m-ops" data-vm="ops">( ) Order</button>
+    <button class="seg-btn m-md" data-vm="md">× ÷</button>
+    <button class="seg-btn m-as" data-vm="as">+ −</button>
+    <button class="seg-btn m-word" data-vm="word">📖 Words</button>
+  </div>
+  <div class="map-sub" id="mapSub"></div>
+  <div class="map-scroll"><div class="skill-list" id="mapList"></div></div>
+  <div class="btn-row"><button class="big-btn btn-next" id="mapBackBtn">◀ Back</button></div>
+</section>
+
+<div class="confetti" id="confetti" aria-hidden="true"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ===================== State & persistence (separate per mode) =====================
+  var LS_KEY = "g5_app_v1";   // { mode, ops:{best,correct,facts}, md:{...}, as:{...}, word:{...} }
+  var SS_KEY = "g5_sess_v1";  // { ops:{points,sinceBonus,lastKind}, ... }
+  var MODES = ["ops", "md", "as", "word"];
+
+  function blankStore() { return { best: 0, correct: 0, facts: {} }; }
+  function normStore(s) { s = s || {}; return { best: s.best || 0, correct: s.correct || 0, facts: s.facts || {} }; }
+  function blankSess() { return { points: 0, sinceBonus: 0, lastKind: "" }; }
+  function normSess(s) { s = s || {}; return { points: s.points || 0, sinceBonus: s.sinceBonus || 0, lastKind: s.lastKind || "" }; }
+
+  function loadData() {
+    var d = { mode: "ops" };
+    var raw = null;
+    try { raw = JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch (e) {}
+    raw = raw || {};
+    d.mode = (MODES.indexOf(raw.mode) >= 0) ? raw.mode : "ops";
+    MODES.forEach(function (m) { d[m] = normStore(raw[m]); });
+    return d;
+  }
+  function loadSessAll() {
+    var raw = null;
+    try { raw = JSON.parse(sessionStorage.getItem(SS_KEY) || "null"); } catch (e) {}
+    raw = raw || {};
+    var s = {};
+    MODES.forEach(function (m) { s[m] = normSess(raw[m]); });
+    return s;
+  }
+  function saveStore() { try { data.mode = mode; localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) {} }
+  function saveSess() { try { sessionStorage.setItem(SS_KEY, JSON.stringify(sessData)); } catch (e) {} }
+
+  var data = loadData();
+  var sessData = loadSessAll();
+  var mode = data.mode;
+  var store = data[mode];
+  var sess = sessData[mode];
+
+  // ===================== Small helpers =====================
+  function rnd(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+  function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+  function fmt(n) { return n.toLocaleString("en-US"); }
+  function money(n) { return "$" + fmt(n); }
+  function hl(n) { return '<span class="hl">' + fmt(n) + '</span>'; }
+  var OPNAME = { "+": "Add", "−": "Subtract", "×": "Multiply", "÷": "Divide" };
+  function opSpan(o) { return '<span class="op' + ((o === "+" || o === "−") ? " add" : "") + '">' + o + '</span>'; }
+  function now() { return Date.now ? Date.now() : new Date().getTime(); }
+
+  // ===================== Expressions: parse, render, solve step-by-step =====================
+  function parseExpr(s) {
+    return s.split(" ").map(function (p) {
+      if (p === "(" || p === "[") return { k: "open", v: p };
+      if (p === ")" || p === "]") return { k: "close", v: p };
+      if (p === "+" || p === "−" || p === "×" || p === "÷") return { k: "op", v: p };
+      return { k: "n", v: parseInt(p, 10) };
+    });
+  }
+  function renderTokens(t, hi) {
+    var out = [];
+    for (var i = 0; i < t.length; i++) {
+      var x = t[i];
+      if (x.k === "n") out.push(i === hi ? hl(x.v) : fmt(x.v));
+      else if (x.k === "op") out.push(opSpan(x.v));
+      else out.push('<span class="br">' + x.v + '</span>');
+    }
+    return out.join(" ");
+  }
+  function tokensText(t) { return t.map(function (x) { return x.k === "n" ? fmt(x.v) : x.v; }).join(" "); }
+
+  // Applies order of operations one operation at a time. Returns null if any step is
+  // not a clean positive whole number (so problems never need fractions or negatives).
+  function solveSteps(tokens, limit) {
+    limit = limit || 200000;
+    var t = tokens.slice(), steps = [], guard = 0, i;
+    while (t.length > 1 && guard++ < 60) {
+      var ci = -1, oi = -1;
+      for (i = 0; i < t.length; i++) if (t[i].k === "close") { ci = i; break; }
+      if (ci >= 0) for (i = ci - 1; i >= 0; i--) if (t[i].k === "open") { oi = i; break; }
+      var seg = (ci >= 0) ? t.slice(oi + 1, ci) : t;
+      if (seg.length === 1) {
+        if (ci < 0) break;
+        t = t.slice(0, oi).concat(seg, t.slice(ci + 1));
+        continue;
+      }
+      var idx = -1, high = 0, low = 0;
+      for (i = 0; i < seg.length; i++) {
+        if (seg[i].k !== "op") continue;
+        if (seg[i].v === "×" || seg[i].v === "÷") { high++; if (idx < 0) idx = i; } else low++;
+      }
+      if (idx < 0) for (i = 0; i < seg.length; i++) if (seg[i].k === "op") { idx = i; break; }
+      if (idx < 1 || idx > seg.length - 2) return null;
+      var L = seg[idx - 1].v, R = seg[idx + 1].v, o = seg[idx].v, res;
+      if (o === "+") res = L + R;
+      else if (o === "−") res = L - R;
+      else if (o === "×") res = L * R;
+      else { if (R === 0 || L % R !== 0) return null; res = L / R; }
+      if (res < 1 || res > limit) return null;
+
+      var where = (oi >= 0) ? (t[oi].v === "(" ? "In the parentheses" : "In the brackets") : "";
+      var extra = [];
+      if (o === "×" || o === "÷") {
+        if (low > 0) extra.push("first, before + and −");
+        if (high > 1) extra.push("left to right");
+      } else if (low > 1) extra.push("left to right");
+      var label = (where ? where + ": " : "") + OPNAME[o] + (extra.length ? " (" + extra.join(", ") + ")" : "");
+
+      var newSeg = seg.slice(0, idx - 1).concat([{ k: "n", v: res }], seg.slice(idx + 2));
+      var hi;
+      if (oi >= 0) {
+        if (newSeg.length === 1) { t = t.slice(0, oi).concat(newSeg, t.slice(ci + 1)); hi = oi; }
+        else { t = t.slice(0, oi + 1).concat(newSeg, t.slice(ci)); hi = oi + 1 + (idx - 1); }
+      } else { t = newSeg; hi = idx - 1; }
+
+      steps.push({
+        label: label,
+        calc: fmt(L) + " " + opSpan(o) + " " + fmt(R) + " = " + hl(res),
+        state: (t.length > 1) ? "Now: " + renderTokens(t, hi) : ""
+      });
+    }
+    if (t.length !== 1 || t[0].k !== "n") return null;
+    return { steps: steps, value: t[0].v };
+  }
+
+  function genExpr(tpls, lo, hi, limit) {
+    for (var tries = 0; tries < 900; tries++) {
+      var parts = pick(tpls).split(" ");
+      var s = parts.map(function (p) { return p === "n" ? String(rnd(lo, hi)) : p; }).join(" ");
+      var tok = parseExpr(s), r = solveSteps(tok, limit);
+      if (r) return { tokens: tok, res: r };
+    }
+    var tk = parseExpr("3 + 4 × 5");
+    return { tokens: tk, res: solveSteps(tk) };
+  }
+
+  // ===================== Order of operations =====================
+  var ORDER_TIP = "Order: ( ) first → × and ÷ left to right → + and − left to right.";
+  function opsKind(key, name, unlock, tpls, lo, hi, limit) {
+    return { key: key, name: name, unlock: unlock, gen: function () {
+      var g = genExpr(tpls, lo, hi + Math.min(6, Math.floor(store.correct / 25)), limit);
+      var txt = tokensText(g.tokens);
+      return { kindClass: "expr", html: renderTokens(g.tokens), plain: txt, answer: g.res.value, steps: g.res.steps, tip: ORDER_TIP };
+    } };
+  }
+
+  // ===================== Multiply / divide =====================
+  function chunks(n) {
+    var s = String(n), out = [];
+    for (var i = 0; i < s.length; i++) { var d = +s[i]; if (d > 0) out.push(d * Math.pow(10, s.length - 1 - i)); }
+    return out;
+  }
+  function sumChain(parts) {
+    var steps = [], run = parts[0];
+    for (var i = 1; i < parts.length; i++) {
+      var nx = run + parts[i];
+      steps.push({ label: "Add the pieces", calc: fmt(run) + " + " + fmt(parts[i]) + " = " + hl(nx) });
+      run = nx;
+    }
+    return steps;
+  }
+  function mulSteps(a, b) {
+    var split, other, steps = [], i;
+    if (String(b).length >= String(a).length) { split = b; other = a; } else { split = a; other = b; }
+    if (split < 10) {
+      split = Math.max(a, b); other = Math.min(a, b);
+      if (split <= 5) {
+        var reps = []; for (i = 0; i < other; i++) reps.push(split);
+        steps.push({ note: "Think of " + other + " groups of " + split + ":" });
+        steps.push({ label: "Count them all", calc: reps.join(" + ") + " = " + hl(a * b) });
+        return steps;
+      }
+      steps.push({ note: "Break " + split + " into 5 + " + (split - 5) + ", multiply each, then add." });
+      var p1 = other * 5, p2 = other * (split - 5);
+      steps.push({ label: "Multiply", calc: other + " × 5 = " + hl(p1) });
+      steps.push({ label: "Multiply", calc: other + " × " + (split - 5) + " = " + hl(p2) });
+      return steps.concat(sumChain([p1, p2]));
+    }
+    var ch = chunks(split);
+    if (ch.length === 1) { steps.push({ label: "Multiply", calc: fmt(a) + " × " + fmt(b) + " = " + hl(a * b) }); return steps; }
+    steps.push({ note: "Break apart " + fmt(split) + " = " + ch.map(fmt).join(" + ") + ". Multiply each piece, then add." });
+    var parts = [];
+    ch.forEach(function (c) {
+      var p = other * c; parts.push(p);
+      steps.push({ label: "Multiply", calc: fmt(other) + " × " + fmt(c) + " = " + hl(p) });
+    });
+    return steps.concat(sumChain(parts));
+  }
+  function divSteps(d, k, q) {
+    var steps = [];
+    if (q < 10) {
+      steps.push({ note: "Think multiplication: " + k + " × ? = " + fmt(d) });
+      steps.push({ label: "Find the missing factor", calc: k + " × " + hl(q) + " = " + fmt(d) });
+      return steps;
+    }
+    var ch = chunks(q), rem = d;
+    steps.push({ note: "Build the answer in friendly pieces — how many " + fmt(k) + "s fit into " + fmt(d) + "?" });
+    ch.forEach(function (c) {
+      var prod = k * c, nr = rem - prod;
+      steps.push({
+        label: "Try " + fmt(c),
+        calc: fmt(k) + " × " + fmt(c) + " = " + fmt(prod),
+        state: nr > 0 ? "Left over: " + fmt(rem) + " − " + fmt(prod) + " = " + fmt(nr) : "Nothing left over!"
+      });
+      rem = nr;
+    });
+    if (ch.length > 1) steps.push({ label: "Add the pieces", calc: ch.map(fmt).join(" + ") + " = " + hl(q) });
+    else steps[steps.length - 1].calc = fmt(k) + " × " + hl(q) + " = " + fmt(d);
+    return steps;
+  }
+  function mdMul(aLo, aHi, bLo, bHi) {
+    return function () {
+      var a = rnd(aLo, aHi), b = rnd(bLo, bHi), plain = fmt(a) + " × " + fmt(b);
+      return { kindClass: plain.length > 9 ? "mid" : "", html: fmt(a) + " " + opSpan("×") + " " + fmt(b), plain: plain,
+        answer: a * b, steps: mulSteps(a, b), tip: "Break a number apart by place value, multiply each piece, then add the pieces." };
+    };
+  }
+  function mdDiv(kLo, kHi, qLo, qHi) {
+    return function () {
+      var k = rnd(kLo, kHi), q = rnd(qLo, qHi), d = k * q, plain = fmt(d) + " ÷ " + k;
+      return { kindClass: plain.length > 9 ? "mid" : "", html: fmt(d) + " " + opSpan("÷") + " " + k, plain: plain,
+        answer: q, steps: divSteps(d, k, q), tip: "Division is multiplication backwards — ask “what times " + k + " makes " + fmt(d) + "?”" };
+    };
+  }
+
+  // ===================== Add / subtract =====================
+  var PLACES = ["Ones", "Tens", "Hundreds", "Thousands", "Ten-thousands", "Hundred-thousands"];
+  function addSteps(a, b) {
+    var sa = String(a), sb = String(b), n = Math.max(sa.length, sb.length), carry = 0, steps = [];
+    for (var i = 0; i < n; i++) {
+      var da = +(sa[sa.length - 1 - i] || 0), db = +(sb[sb.length - 1 - i] || 0), s = da + db + carry;
+      var w = s % 10, c = Math.floor(s / 10);
+      steps.push({ label: PLACES[i], calc: da + " + " + db + (carry ? " + " + carry + " (carried)" : "") + " = " + s,
+        state: c ? "Write " + w + ", carry " + c : "Write " + w });
+      carry = c;
+    }
+    if (carry) steps.push({ label: PLACES[n], calc: "Bring down the carried " + carry, state: "Write " + carry });
+    steps.push({ label: "Put it together", calc: fmt(a) + " + " + fmt(b) + " = " + hl(a + b) });
+    return steps;
+  }
+  function subSteps(a, b) {
+    var sa = String(a), sb = String(b), n = sa.length, borrow = 0, steps = [];
+    for (var i = 0; i < n; i++) {
+      var da = +sa[n - 1 - i], db = +(sb[sb.length - 1 - i] || 0);
+      var base = da - borrow, need = base < db, top = need ? base + 10 : base, w = top - db;
+      var note = "";
+      if (borrow) note += (base < 0 ? da + " gave 1 away, so it needs to borrow too. " : da + " gave 1 away, so it is " + base + ". ");
+      note += "Write " + w;
+      steps.push({ label: PLACES[i], calc: (need ? "Borrow: " : "") + top + " − " + db + " = " + w, state: note });
+      borrow = need ? 1 : 0;
+    }
+    steps.push({ label: "Put it together", calc: fmt(a) + " − " + fmt(b) + " = " + hl(a - b) });
+    return steps;
+  }
+  function asGen(d, isAdd) {
+    return function () {
+      var lo = Math.pow(10, d - 1), hi = Math.pow(10, d) - 1, a = rnd(lo, hi), b = rnd(lo, hi), guard = 0;
+      if (!isAdd) { while (a <= b && guard++ < 50) { a = rnd(lo, hi); b = rnd(lo, hi); } if (a <= b) { a = hi; b = lo; } }
+      var sym = isAdd ? "+" : "−", plain = fmt(a) + " " + sym + " " + fmt(b);
+      return { kindClass: plain.length > 9 ? "mid" : "", html: fmt(a) + " " + opSpan(sym) + " " + fmt(b), plain: plain,
+        answer: isAdd ? a + b : a - b, steps: isAdd ? addSteps(a, b) : subSteps(a, b),
+        tip: isAdd ? "Line up the places. Add from the ones, and carry when a place reaches 10." : "Line up the places. Subtract from the ones, and borrow when the top digit is too small." };
+    };
+  }
+
+  // ===================== Word problems =====================
+  var NAMES = ["Maya", "Jordan", "Leo", "Sofia", "Ethan", "Priya", "Marcus", "Lily", "Noah", "Zoe", "Aiden", "Nina", "Omar", "Chloe"];
+  function nm() { return pick(NAMES); }
+  function wLvl() { var c = store.correct; return c < 12 ? 0 : (c < 30 ? 1 : 2); }
+  function hiNums(t) { return t.replace(/(\$?\d[\d,]*)/g, '<span class="num">$1</span>'); }
+
+  function wp(text, expr, unit, isMoney, clue) {
+    var tok = parseExpr(expr), r = solveSteps(tok);
+    if (!r) return null;
+    var steps = [{ note: "💡 " + clue }];
+    if (tok.length > 3) steps.push({ label: "Write the equation", calc: renderTokens(tok) });
+    steps = steps.concat(r.steps);
+    return { kindClass: "word", html: hiNums(text), textHtml: hiNums(text), plain: text, answer: r.value,
+      ansText: isMoney ? money(r.value) : fmt(r.value) + (unit ? " " + unit : ""),
+      steps: steps, tip: "Read it, decide what the question asks, write an equation, then solve." };
+  }
+  function retry(fn) {
+    return function () {
+      for (var i = 0; i < 100; i++) { var p = fn(); if (p) return p; }
+      return wp("What is 12 + 13?", "12 + 13", "", false, "Put the amounts together — add.");
+    };
+  }
+
+  var wAdd = retry(function () {
+    var r = [[20, 99], [100, 999], [1000, 9999]][wLvl()], a = rnd(r[0], r[1]), b = rnd(r[0], r[1]), N = nm();
+    var t = pick([
+      { t: N + " read " + fmt(a) + " pages on Saturday and " + fmt(b) + " pages on Sunday. How many pages did " + N + " read in all?", u: "pages" },
+      { t: "A school collected " + fmt(a) + " cans in the fall and " + fmt(b) + " cans in the spring. How many cans did the school collect altogether?", u: "cans" },
+      { t: "A bakery sold " + fmt(a) + " muffins before noon and " + fmt(b) + " muffins after noon. How many muffins did it sell in total?", u: "muffins" },
+      { t: "A zoo had " + fmt(a) + " visitors on Friday and " + fmt(b) + " visitors on Saturday. How many visitors came in all?", u: "visitors" }
+    ]);
+    return wp(t.t, a + " + " + b, t.u, false, "“In all,” “altogether,” and “total” mean put the groups together — add.");
+  });
+  var wSub = retry(function () {
+    var L = wLvl(), a, b, N = nm();
+    if (L === 0) { a = rnd(50, 99); b = rnd(11, a - 5); }
+    else if (L === 1) { a = rnd(300, 999); b = rnd(100, a - 20); }
+    else { a = rnd(3000, 9999); b = rnd(1000, a - 100); }
+    var t = pick([
+      { t: N + " had " + fmt(a) + " stickers and gave " + fmt(b) + " to a friend. How many stickers does " + N + " have left?", u: "stickers" },
+      { t: "A stadium has " + fmt(a) + " seats. If " + fmt(b) + " seats are taken, how many seats are empty?", u: "seats" },
+      { t: "A hiking trail is " + fmt(a) + " feet long. " + N + " has walked " + fmt(b) + " feet. How many more feet are left to walk?", u: "feet" },
+      { t: "A store had " + fmt(a) + " bottles of juice and sold " + fmt(b) + ". How many bottles are left?", u: "bottles" }
+    ]);
+    return wp(t.t, a + " − " + b, t.u, false, "“Left,” “how many more,” and “difference” mean take away — subtract.");
+  });
+  var wMul = retry(function () {
+    var L = wLvl(), a, b, N = nm();
+    if (L === 0) { a = rnd(3, 12); b = rnd(3, 12); }
+    else if (L === 1) { a = rnd(12, 30); b = rnd(3, 12); }
+    else { a = rnd(12, 45); b = rnd(12, 45); }
+    var t = pick([
+      { t: "There are " + a + " rows of seats in a theater. Each row has " + b + " seats. How many seats are there?", u: "seats", m: false },
+      { t: N + " bought " + a + " packs of trading cards. Each pack has " + b + " cards. How many cards did " + N + " buy?", u: "cards", m: false },
+      { t: "Movie tickets cost " + money(b) + " each. How much do " + a + " tickets cost?", u: "", m: true },
+      { t: "A garden has " + a + " rows of tomato plants with " + b + " plants in each row. How many plants are in the garden?", u: "plants", m: false }
+    ]);
+    return wp(t.t, a + " × " + b, t.u, t.m, "Equal groups — a number of groups with the same amount in each — means multiply.");
+  });
+  var wDiv = retry(function () {
+    var L = wLvl(), k, q, N = nm();
+    if (L === 0) { k = rnd(3, 9); q = rnd(3, 12); }
+    else if (L === 1) { k = rnd(3, 12); q = rnd(12, 60); }
+    else { k = rnd(11, 30); q = rnd(12, 60); }
+    var t = k * q;
+    var T = pick([
+      { t: N + " has " + fmt(t) + " stickers to share equally among " + k + " friends. How many stickers does each friend get?", u: "stickers" },
+      { t: fmt(t) + " students are going on a field trip. Each bus holds " + k + " students. How many buses are needed?", u: "buses" },
+      { t: "A ribbon is " + fmt(t) + " inches long. " + N + " cuts it into pieces that are each " + k + " inches long. How many pieces is that?", u: "pieces" },
+      { t: "A baker packs " + fmt(t) + " cookies into boxes of " + k + ". How many boxes does the baker fill?", u: "boxes" }
+    ]);
+    return wp(T.t, t + " ÷ " + k, T.u, false, "“Share equally” or “how many groups” with a total to split up means divide.");
+  });
+  var wTwo = retry(function () {
+    var L = wLvl(), N = nm(), which = rnd(1, 5), a, b, c, p, m, k, q, s, t;
+    var clue = "Two steps — do one calculation first, then use that answer in the next one.";
+    if (which === 1) {
+      a = rnd(3, L ? 12 : 8); p = rnd(2, L ? 15 : 9);
+      var bills = [10, 20, 50, 100, 200, 500]; m = 0;
+      for (var i = 0; i < bills.length; i++) if (bills[i] > a * p) { m = bills[i]; break; }
+      return wp(N + " buys " + a + " notebooks for " + money(p) + " each and pays with a " + money(m) + " bill. How much change does " + N + " get back?",
+        m + " − " + a + " × " + p, "", true, clue);
+    }
+    if (which === 2) {
+      a = rnd(6, L ? 24 : 12); b = rnd(3, L ? 12 : 9); c = rnd(2, a - 1);
+      return wp("A box holds " + a + " crayons. " + N + " has " + b + " full boxes and " + c + " extra crayons. How many crayons does " + N + " have?",
+        b + " × " + a + " + " + c, "crayons", false, clue);
+    }
+    if (which === 3) {
+      a = rnd(5, L ? 30 : 20); b = rnd(3, 9); c = rnd(10, 40);
+      return wp(N + " reads " + a + " pages each day for " + b + " days, then reads " + c + " more pages. How many pages did " + N + " read in all?",
+        a + " × " + b + " + " + c, "pages", false, clue);
+    }
+    if (which === 4) {
+      k = 12; q = rnd(5, L ? 40 : 25); s = rnd(2, q - 1); t = k * q;
+      return wp("A farmer packs " + fmt(t) + " eggs into cartons of " + k + ". If " + s + " cartons are sold, how many cartons are left?",
+        t + " ÷ " + k + " − " + s, "cartons", false, clue);
+    }
+    a = rnd(5, L ? 30 : 20); b = rnd(3, 12); c = rnd(5, Math.max(6, a * b - 5));
+    return wp(N + " saves " + money(a) + " each week for " + b + " weeks and then spends " + money(c) + " on a game. How much money does " + N + " have left?",
+      a + " × " + b + " − " + c, "", true, clue);
+  });
+  var wOps = retry(function () {
+    var N = nm(), which = rnd(1, 5), a, b, c, d, p, q, k, s, total;
+    var clue = "Write ONE expression for the whole story, then use the order of operations.";
+    if (which === 1) {
+      a = rnd(3, 15); b = rnd(3, 15); p = rnd(2, 9);
+      return wp(N + " bought " + a + " red pens and " + b + " blue pens. Each pen cost " + money(p) + ". How much did " + N + " spend in all?",
+        "( " + a + " + " + b + " ) × " + p, "", true, "Add the pens first — that is what the parentheses are for.");
+    }
+    if (which === 2) {
+      k = rnd(4, 12); q = rnd(3, 15); total = k * q; a = rnd(5, total - 3); b = total - a;
+      return wp(a + " students and " + b + " adults are going to a museum. Each van holds " + k + " people. How many vans are needed?",
+        "( " + a + " + " + b + " ) ÷ " + k, "vans", false, "Count everyone first (parentheses), then divide into vans.");
+    }
+    if (which === 3) {
+      a = rnd(10, 50); p = rnd(3, 12); d = rnd(3, 9); s = rnd(5, a + p * d - 1);
+      return wp(N + " has " + money(a) + ". " + N + " earns " + money(p) + " each day for " + d + " days and then spends " + money(s) + " on a book. How much money does " + N + " have now?",
+        a + " + " + p + " × " + d + " − " + s, "", true, clue);
+    }
+    if (which === 4) {
+      a = rnd(2, 9); b = rnd(4, 12); c = rnd(2, 9); d = rnd(4, 12);
+      return wp("A bakery packs " + a + " boxes with " + b + " cupcakes each and " + c + " boxes with " + d + " cupcakes each. How many cupcakes is that in all?",
+        a + " × " + b + " + " + c + " × " + d, "cupcakes", false, clue);
+    }
+    a = rnd(2, 6); p = rnd(3, 9); b = rnd(2, 6); q = rnd(1, 4);
+    return wp(N + " buys " + a + " sandwiches for " + money(p) + " each and " + b + " drinks for " + money(q) + " each. What is the total cost?",
+      a + " × " + p + " + " + b + " × " + q, "", true, clue);
+  });
+
+  // ===================== Skill lists per mode =====================
+  var MODE_KINDS = {
+    ops: [
+      opsKind("ops:md", "× ÷ before + −", 0, ["n + n × n", "n × n + n", "n − n × n", "n × n − n", "n + n ÷ n", "n ÷ n + n", "n − n ÷ n", "n ÷ n − n"], 2, 12, 2000),
+      opsKind("ops:lr", "Left to right", 5, ["n ÷ n × n", "n × n ÷ n", "n + n − n", "n − n + n", "n − n − n"], 2, 12, 2000),
+      opsKind("ops:paren", "Parentheses ( )", 10, ["( n + n ) × n", "n × ( n + n )", "( n − n ) × n", "n × ( n − n )", "( n + n ) ÷ n", "n ÷ ( n − n )", "n − ( n + n )"], 2, 12, 2000),
+      opsKind("ops:three", "Three operations", 18, ["n + n × n − n", "n × n + n × n", "n × ( n + n ) − n", "( n + n ) × n + n", "n + ( n − n ) × n", "n × n − n ÷ n", "( n + n ) × ( n − n )", "n ÷ n + n × n", "( n + n ) ÷ n × n"], 2, 12, 3000),
+      opsKind("ops:nested", "Brackets [ ( ) ]", 28, ["[ ( n + n ) × n ] − n", "n + [ n × ( n − n ) ]", "n × [ ( n + n ) − n ]", "[ n × ( n + n ) − n ] ÷ n", "n × [ n + ( n − n ) ]", "[ ( n + n ) × n + n ] ÷ n"], 2, 9, 3000)
+    ],
+    md: [
+      { key: "md:mulfact", name: "Multiplication facts", unlock: 0, gen: mdMul(3, 12, 3, 12) },
+      { key: "md:divfact", name: "Division facts", unlock: 0, gen: mdDiv(3, 12, 3, 12) },
+      { key: "md:mul21", name: "2-digit × 1-digit", unlock: 4, gen: mdMul(11, 99, 3, 9) },
+      { key: "md:div21", name: "Divide by 1-digit", unlock: 4, gen: mdDiv(3, 9, 11, 99) },
+      { key: "md:mul22", name: "2-digit × 2-digit", unlock: 10, gen: mdMul(12, 99, 11, 39) },
+      { key: "md:div31", name: "Bigger ÷ 1-digit", unlock: 16, gen: mdDiv(3, 9, 100, 400) },
+      { key: "md:mul32", name: "3-digit × 2-digit", unlock: 24, gen: mdMul(101, 499, 11, 39) },
+      { key: "md:div42", name: "Divide by 2-digit", unlock: 34, gen: mdDiv(11, 49, 11, 99) }
+    ],
+    as: [
+      { key: "as:2+", name: "2-digit add", unlock: 0, gen: asGen(2, true) },
+      { key: "as:2−", name: "2-digit subtract", unlock: 0, gen: asGen(2, false) },
+      { key: "as:3+", name: "3-digit add", unlock: 4, gen: asGen(3, true) },
+      { key: "as:3−", name: "3-digit subtract", unlock: 4, gen: asGen(3, false) },
+      { key: "as:4+", name: "4-digit add", unlock: 12, gen: asGen(4, true) },
+      { key: "as:4−", name: "4-digit subtract", unlock: 12, gen: asGen(4, false) },
+      { key: "as:5+", name: "5-digit add", unlock: 22, gen: asGen(5, true) },
+      { key: "as:5−", name: "5-digit subtract", unlock: 22, gen: asGen(5, false) }
+    ],
+    word: [
+      { key: "w:add", name: "Add story", unlock: 0, gen: wAdd },
+      { key: "w:sub", name: "Subtract story", unlock: 0, gen: wSub },
+      { key: "w:mul", name: "Multiply story", unlock: 3, gen: wMul },
+      { key: "w:div", name: "Divide story", unlock: 3, gen: wDiv },
+      { key: "w:two", name: "Two-step story", unlock: 8, gen: wTwo },
+      { key: "w:ops", name: "Order-of-operations story", unlock: 16, gen: wOps }
+    ]
+  };
+
+  // ===================== Spaced repetition (real-time Leitner) =====================
+  // box 0..5 → resurface after: 25s, 3m, 10m, 1 day, 3 days, 7 days
+  var INTERVALS = [25e3, 18e4, 6e5, 864e5, 2592e5, 6048e5];
+  function scheduleFact(key, ok, t) {
+    var f = store.facts[key] || { box: 0, due: 0, seen: 0, correct: 0, wrong: 0, lastSeen: 0 };
+    f.seen++;
+    if (ok) { f.correct++; f.box = Math.min(f.box + 1, 5); }
+    else { f.wrong++; f.box = Math.max(f.box - 1, 0); }
+    f.due = t + INTERVALS[f.box];
+    f.lastSeen = t;
+    store.facts[key] = f;
+    saveStore();
+  }
+
+  // ===================== Mode switching =====================
+  function switchMode(m) {
+    if (m === mode) return;
+    mode = m; data.mode = m;
+    store = data[m]; sess = sessData[m];
+    saveStore();
+    updateModeUI();
+    newProblem();
+    startProblemFlow();
+  }
+  function updateModeUI() {
+    var bs = document.querySelectorAll("#modeSeg .seg-btn");
+    for (var i = 0; i < bs.length; i++) bs[i].classList.toggle("active", bs[i].getAttribute("data-mode") === mode);
+  }
+
+  // ===================== Problem generation =====================
+  var current = { answer: 0, plain: "", html: "", steps: [], kind: "" };
+  var HINTS = {
+    ops: "Remember: ( ) first, then × ÷, then + −",
+    md: "Use scratch paper if you need it ✏️",
+    as: "Use scratch paper if you need it ✏️",
+    word: "Read carefully, then solve ✏️"
+  };
+
+  function newProblem() {
+    var t = now();
+    var kinds = MODE_KINDS[mode].filter(function (k) { return store.correct >= k.unlock; });
+    var due = [], unseen = [], seen = [];
+    kinds.forEach(function (k) {
+      var f = store.facts[k.key];
+      if (!f) unseen.push(k);
+      else { seen.push({ k: k, f: f }); if (f.due <= t) due.push({ k: k, f: f }); }
+    });
+    var pool, weak = false;
+    if (due.length) {
+      due.sort(function (x, y) { return x.f.box - y.f.box || x.f.due - y.f.due; });
+      pool = due.map(function (d) { return d.k; }); weak = true;
+    } else if (unseen.length) {
+      pool = unseen.slice();
+    } else {
+      seen.sort(function (x, y) { return x.f.due - y.f.due; });
+      pool = seen.map(function (d) { return d.k; }); weak = true;
+    }
+    var filtered = pool.filter(function (k) { return k.key !== sess.lastKind; });
+    var use = filtered.length ? filtered : pool;
+    var kind = weak ? use[Math.floor(Math.random() * Math.min(2, use.length))] : pick(use);
+
+    current = kind.gen();
+    current.kind = kind.key;
+    sess.lastKind = kind.key; saveSess();
+    typed = "";
+    renderProblem();
+  }
+
+  // ===================== Input =====================
+  var typed = "";
+  var answerDisplay = document.getElementById("answerDisplay");
+  var problemText = document.getElementById("problemText");
+
+  function renderProblem() {
+    problemText.className = "problem " + (current.kindClass || "");
+    problemText.innerHTML = current.html;
+    document.getElementById("guessHint").textContent = HINTS[mode];
+    renderTyped();
+  }
+  function renderTyped() {
+    if (typed === "") { answerDisplay.textContent = "?"; answerDisplay.classList.add("empty"); }
+    else { answerDisplay.textContent = typed; answerDisplay.classList.remove("empty"); }
+  }
+  function pressDigit(d) {
+    if (typed.length >= 7) return;
+    if (typed === "" && d === "0") { typed = "0"; renderTyped(); return; }
+    if (typed === "0") typed = "";
+    typed += d; renderTyped();
+  }
+  function pressBack() { typed = typed.slice(0, -1); renderTyped(); }
+  function pressCheck() {
+    if (typed === "") return;
+    var ok = (parseInt(typed, 10) === current.answer);
+    scheduleFact(current.kind, ok, now());
+    if (ok) onCorrect(); else onWrong();
+  }
+  document.getElementById("keypad").addEventListener("click", function (e) {
+    var btn = e.target.closest("button"); if (!btn) return;
+    if (btn.dataset.d != null) pressDigit(btn.dataset.d);
+    else if (btn.dataset.act === "back") pressBack();
+    else if (btn.dataset.act === "check") pressCheck();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!document.getElementById("problemScreen").classList.contains("active")) return;
+    if (e.key >= "0" && e.key <= "9") pressDigit(e.key);
+    else if (e.key === "Backspace") pressBack();
+    else if (e.key === "Enter") pressCheck();
+  });
+
+  // ===================== Screen switching (focus protection) =====================
+  var topbar = document.getElementById("topbar");
+  var betweenScreen = "celebrateScreen";
+  function show(id) {
+    var screens = document.querySelectorAll(".screen");
+    for (var i = 0; i < screens.length; i++) screens[i].classList.remove("active");
+    document.getElementById(id).classList.add("active");
+    var between = (id === "celebrateScreen" || id === "teachScreen");
+    topbar.classList.toggle("show", between);
+    if (between) { updateScore(); updateModeUI(); }
+  }
+  function updateScore() {
+    document.getElementById("scoreNum").textContent = sess.points;
+    document.getElementById("bestNum").textContent = store.best;
+  }
+
+  // ===================== Per-problem flow =====================
+  function startProblemFlow() {
+    if ((mode === "md" || mode === "as") && current.answer >= 20 && Math.random() < 0.2) showEstimate();
+    else show("problemScreen");
+  }
+  function nextProblem() { newProblem(); startProblemFlow(); }
+
+  // ---- Estimation step (multiply/divide and add/subtract only) ----
+  var estQ = document.getElementById("estQ");
+  var estMore = document.getElementById("estMore");
+  var estLess = document.getElementById("estLess");
+  var estFeedback = document.getElementById("estFeedback");
+  function estThreshold(p) {
+    var unit = Math.pow(10, String(p).length - 1);
+    var T = Math.round(p / unit) * unit;
+    if (T === p) T = p + unit / 2;
+    return T;
+  }
+  function showEstimate() {
+    var p = current.answer, T = estThreshold(p);
+    current.estSide = (p > T) ? "more" : "less";
+    estQ.innerHTML = 'Will <span class="x">' + current.plain + '</span> be<br>more or less than <span class="t">' + fmt(T) + '</span>?';
+    estMore.textContent = "▲  More than " + fmt(T);
+    estLess.textContent = "▼  Less than " + fmt(T);
+    estFeedback.textContent = "";
+    estMore.disabled = false; estLess.disabled = false;
+    show("estimateScreen");
+  }
+  function onEstimate(side) {
+    estMore.disabled = true; estLess.disabled = true;
+    var right = (side === current.estSide);
+    estFeedback.style.color = right ? "#7bd06a" : "#ffd84d";
+    estFeedback.textContent = right ? "Good thinking! 👍" : "Good estimate — let's find out! 😊";
+    setTimeout(function () { show("problemScreen"); }, 1000);
+  }
+  estMore.addEventListener("click", function () { onEstimate("more"); });
+  estLess.addEventListener("click", function () { onEstimate("less"); });
+
+  // ===================== Correct flow + bonus =====================
+  var POINTS_PER = 10, BONUS_POINTS = 25, BONUS_MIN_GAP = 6, BONUS_MEAN = 12, BONUS_HARD_CAP = 30;
+  var celeEmojis = ["🎉", "🌟", "🚀", "🌈", "🎈", "⭐", "🏆", "💫"];
+  var celeMsgs = ["You got it!", "Amazing!", "Brilliant!", "Super star!", "Math wizard!", "Way to go!", "Fantastic!", "Nailed it!"];
+
+  function onCorrect() {
+    var gained = POINTS_PER;
+    sess.sinceBonus++;
+    var bonus = false;
+    if (sess.sinceBonus >= BONUS_HARD_CAP) bonus = true;
+    else if (sess.sinceBonus >= BONUS_MIN_GAP && Math.random() < 1 / (BONUS_MEAN - BONUS_MIN_GAP + 1)) bonus = true;
+    if (bonus) { gained += BONUS_POINTS; sess.sinceBonus = 0; }
+
+    sess.points += gained;
+    store.correct += 1;
+    if (sess.points > store.best) store.best = sess.points;
+    saveStore(); saveSess();
+
+    var emojiEl = document.getElementById("celeEmoji");
+    var msgEl = document.getElementById("celeMsg");
+    var subEl = document.getElementById("celeSub");
+    var burst = document.getElementById("burst");
+
+    if (bonus) {
+      emojiEl.textContent = "🏆";
+      msgEl.textContent = "⭐ BONUS! ⭐";
+      msgEl.classList.add("bonus");
+      subEl.textContent = "+10  and a  +25 BONUS!";
+      burst.classList.add("gold");
+    } else {
+      emojiEl.textContent = pick(celeEmojis);
+      msgEl.textContent = pick(celeMsgs);
+      msgEl.classList.remove("bonus");
+      subEl.textContent = "+" + POINTS_PER + " points";
+      burst.classList.remove("gold");
+    }
+    betweenScreen = "celebrateScreen";
+    show("celebrateScreen");
+    burst.classList.remove("go"); void burst.offsetWidth; burst.classList.add("go");
+    launchConfetti(bonus);
+    chime(bonus);
+  }
+
+  // ===================== Wrong flow (teaching) =====================
+  function setEquation() {
+    var eq = document.getElementById("equationText");
+    if (mode === "word") {
+      eq.className = "equation word";
+      eq.innerHTML = '<div>' + current.textHtml + '</div><div class="wp-ans">Answer: <span class="prod">' + current.ansText + '</span></div>';
+    } else {
+      var len = current.plain.length;
+      eq.className = "equation " + (len <= 9 ? "" : (len <= 22 ? "med" : "small"));
+      eq.innerHTML = current.html + ' <span class="eq">=</span> <span class="prod">' + fmt(current.answer) + '</span>';
+    }
+  }
+  function onWrong() {
+    setEquation();
+    document.getElementById("illoArea").innerHTML = "";
+    document.getElementById("illoCaption").style.display = "none";
+    document.getElementById("illoAnswer").style.display = "none";
+    document.getElementById("teachScroll").scrollTop = 0;
+    betweenScreen = "teachScreen";
+    show("teachScreen");
+  }
+
+  // ===================== Worked steps =====================
+  function renderReveal() {
+    var cap = document.getElementById("illoCaption");
+    var area = document.getElementById("illoArea");
+    var ans = document.getElementById("illoAnswer");
+    area.innerHTML = "";
+    cap.style.display = "block"; ans.style.display = "block";
+    cap.innerHTML = current.tip;
+    var wrap = document.createElement("div"); wrap.className = "steps";
+    var n = 0;
+    current.steps.forEach(function (s, i) {
+      var d = document.createElement("div"); d.className = "step" + (s.note ? " note" : "");
+      d.style.animationDelay = (i * 0.1) + "s";
+      var h;
+      if (s.note) h = '<div class="calc note-t">' + s.note + '</div>';
+      else {
+        n++;
+        h = '<div class="lab">STEP ' + n + ' · ' + s.label + '</div>';
+        if (s.calc) h += '<div class="calc">' + s.calc + '</div>';
+        if (s.state) h += '<div class="state">' + s.state + '</div>';
+      }
+      d.innerHTML = h; wrap.appendChild(d);
+    });
+    area.appendChild(wrap);
+    ans.innerHTML = 'Answer: <span class="hl">' + (mode === "word" ? current.ansText : fmt(current.answer)) + '</span>';
+  }
+
+  // ===================== Buttons =====================
+  document.getElementById("teachNextBtn").addEventListener("click", nextProblem);
+  document.getElementById("celeNextBtn").addEventListener("click", nextProblem);
+  document.getElementById("teachIlloBtn").addEventListener("click", renderReveal);
+  document.getElementById("celeIlloBtn").addEventListener("click", function () {
+    setEquation();
+    document.getElementById("illoArea").innerHTML = "";
+    document.getElementById("teachScroll").scrollTop = 0;
+    betweenScreen = "teachScreen";
+    show("teachScreen");
+    renderReveal();
+  });
+  document.getElementById("celeMapBtn").addEventListener("click", openMap);
+  document.getElementById("teachMapBtn").addEventListener("click", openMap);
+  document.getElementById("mapBackBtn").addEventListener("click", function () { show(betweenScreen); });
+  function openMap() { mapView = mode; renderMap(); show("mapScreen"); }
+
+  document.getElementById("modeSeg").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    switchMode(b.getAttribute("data-mode"));
+  });
+  document.getElementById("mapTabs").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    mapView = b.getAttribute("data-vm"); renderMap();
+  });
+
+  // ===================== Skill map (per mode) =====================
+  var mapView = "ops";
+  function renderMap() {
+    var vstore = data[mapView], kinds = MODE_KINDS[mapView];
+    var list = document.getElementById("mapList"); list.innerHTML = "";
+    var palette = ["#4a3a5a", "#6a4bd6", "#4f7fd0", "#3fa45c", "#7bd06a", "#ffd84d"];
+    var mastered = 0;
+    kinds.forEach(function (k) {
+      var f = vstore.facts[k.key], locked = vstore.correct < k.unlock;
+      if (f && f.box >= 4) mastered++;
+      var row = document.createElement("div"); row.className = "skill-row" + (locked ? " locked" : "");
+      var left = document.createElement("div");
+      var nm1 = document.createElement("div"); nm1.className = "skill-name"; nm1.textContent = (locked ? "🔒 " : "") + k.name;
+      var sub = document.createElement("div"); sub.className = "skill-sub";
+      sub.textContent = locked ? "Unlocks after " + k.unlock + " correct answers" : (f ? f.correct + " right · " + f.wrong + " to practice" : "Not tried yet");
+      left.appendChild(nm1); left.appendChild(sub);
+      var meter = document.createElement("div"); meter.className = "skill-meter";
+      var filled = f ? Math.max(1, f.box) : 0;
+      for (var i = 0; i < 5; i++) {
+        var pip = document.createElement("span"); pip.className = "skill-pip";
+        if (i < filled) pip.style.background = palette[Math.min(f.box, 5)];
+        meter.appendChild(pip);
+      }
+      row.appendChild(left); row.appendChild(meter); list.appendChild(row);
+    });
+    document.getElementById("mapSub").textContent = mastered + (mastered === 1 ? " skill" : " skills") + " mastered! Keep going ⭐";
+    var tabs = document.querySelectorAll("#mapTabs .seg-btn");
+    for (var j = 0; j < tabs.length; j++) tabs[j].classList.toggle("active", tabs[j].getAttribute("data-vm") === mapView);
+  }
+
+  // ===================== Confetti =====================
+  var confettiEl = document.getElementById("confetti");
+  var confettiNormal = ["🎉", "⭐", "🌈", "💖", "✨", "🎈", "🚀"];
+  var confettiGold = ["🌟", "⭐", "🏆", "✨", "💛", "🎉", "👑"];
+  function launchConfetti(bonus) {
+    confettiEl.innerHTML = "";
+    var bits = bonus ? confettiGold : confettiNormal;
+    var count = bonus ? 44 : 28;
+    for (var i = 0; i < count; i++) {
+      var s = document.createElement("span");
+      s.textContent = pick(bits);
+      s.style.left = Math.random() * 100 + "vw";
+      s.style.animationDuration = (2.0 + Math.random() * 1.9) + "s";
+      s.style.animationDelay = (Math.random() * 0.5) + "s";
+      s.style.fontSize = (bonus ? (24 + Math.random() * 18) : (20 + Math.random() * 14)) + "px";
+      confettiEl.appendChild(s);
+    }
+    setTimeout(function () { confettiEl.innerHTML = ""; }, 4800);
+  }
+
+  // ===================== Gentle chime (WebAudio, no asset files) =====================
+  var audioCtx = null;
+  function chime(bonus) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      var notes = bonus ? [523.25, 659.25, 783.99, 1046.5, 1318.5] : [523.25, 659.25, 783.99];
+      notes.forEach(function (f, idx) {
+        var osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+        osc.type = "sine"; osc.frequency.value = f;
+        var t0 = audioCtx.currentTime + idx * 0.1;
+        gain.gain.setValueAtTime(0, t0);
+        gain.gain.linearRampToValueAtTime(0.18, t0 + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.42);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(t0); osc.stop(t0 + 0.5);
+      });
+    } catch (e) {}
+  }
+
+  // Test hook (only present when a test harness defines window.__G5_TEST first)
+  if (typeof window !== "undefined" && window.__G5_TEST) {
+    window.__G5_TEST.kinds = MODE_KINDS;
+    window.__G5_TEST.setCorrect = function (m, n) { data[m].correct = n; };
+    window.__G5_TEST.use = function (m) { mode = m; store = data[m]; sess = sessData[m]; };
+    window.__G5_TEST.solve = function (s) { return solveSteps(parseExpr(s)); };
+  }
+
+  // ===================== Init =====================
+  updateModeUI();
+  updateScore();
+  newProblem();
+  startProblemFlow();
+})();
+</script>
+</body>
+</html>
