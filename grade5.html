@@ -213,6 +213,18 @@
   .skill-sub { font-size: clamp(11px, 3.1vw, 13px); color: #8a8f9e; font-weight: 600; margin-top: 2px; }
   .skill-meter { display: flex; gap: 4px; flex: 0 0 auto; }
   .skill-pip { width: clamp(14px, 4vw, 20px); height: clamp(14px, 4vw, 20px); border-radius: 6px; background: #23232b; }
+
+  .seg-btn.m-speed.active { background: #e0b020; color: #000; }
+  .mode-seg { flex-wrap: wrap; justify-content: center; border-radius: 22px; }
+  #reportScreen { padding-top: calc(max(env(safe-area-inset-top), 10px) + 12px); justify-content: flex-start; }
+  .rep-cards { display: flex; gap: 8px; width: 100%; }
+  .rep-card { flex: 1; background: #15151c; border: 2px solid #2c2c3a; border-radius: 14px; padding: 10px 6px; display: flex; flex-direction: column; align-items: center; }
+  .rep-card b { font-size: clamp(20px, 6vw, 28px); color: #ffd84d; }
+  .rep-card span { font-size: clamp(11px, 3.1vw, 13px); color: #8a8f9e; font-weight: 700; }
+  .rep-note { font-size: clamp(13px, 3.6vw, 16px); color: #cfd2e0; font-weight: 700; text-align: center; padding: 6px 4px; }
+  .rep-h { font-size: clamp(15px, 4.2vw, 19px); font-weight: 800; color: #ffd84d; margin: 8px 2px 0; text-align: left; }
+  .rep-empty { font-size: 14px; color: #8a8f9e; text-align: left; padding: 0 4px; }
+  .rep-r { font-size: clamp(13px, 3.6vw, 16px); color: #cfd2e0; text-align: right; margin: 0; }
 </style>
 </head>
 <body>
@@ -223,6 +235,7 @@
     <button class="seg-btn m-md" data-mode="md">× ÷</button>
     <button class="seg-btn m-as" data-mode="as">+ −</button>
     <button class="seg-btn m-word" data-mode="word">📖 Words</button>
+    <button class="seg-btn m-speed" data-mode="speed">⚡ Speed</button>
   </div>
   <div class="tb-scoreline">
     <span class="tb-score">⭐ <b id="scoreNum">0</b></span>
@@ -273,6 +286,7 @@
   <div class="btn-row">
     <button class="big-btn btn-illo" id="celeIlloBtn">See the steps ✨</button>
     <button class="big-btn btn-map" id="celeMapBtn">⭐ My Stars</button>
+    <button class="big-btn btn-map" id="celeRepBtn" style="display:none;">📊 Report</button>
     <button class="big-btn btn-next" id="celeNextBtn">Next ▶</button>
   </div>
 </section>
@@ -288,6 +302,7 @@
   <div class="btn-row">
     <button class="big-btn btn-illo" id="teachIlloBtn">Show me the steps ✨</button>
     <button class="big-btn btn-map" id="teachMapBtn">⭐ My Stars</button>
+    <button class="big-btn btn-map" id="teachRepBtn" style="display:none;">📊 Report</button>
     <button class="big-btn btn-next" id="teachNextBtn">Try the next one ▶</button>
   </div>
 </section>
@@ -300,10 +315,24 @@
     <button class="seg-btn m-md" data-vm="md">× ÷</button>
     <button class="seg-btn m-as" data-vm="as">+ −</button>
     <button class="seg-btn m-word" data-vm="word">📖 Words</button>
+    <button class="seg-btn m-speed" data-vm="speed">⚡ Speed</button>
   </div>
   <div class="map-sub" id="mapSub"></div>
   <div class="map-scroll"><div class="skill-list" id="mapList"></div></div>
-  <div class="btn-row"><button class="big-btn btn-next" id="mapBackBtn">◀ Back</button></div>
+  <div class="btn-row">
+    <button class="big-btn btn-map" id="mapRepBtn" style="display:none;">📊 Report</button>
+    <button class="big-btn btn-next" id="mapBackBtn">◀ Back</button>
+  </div>
+</section>
+
+<!-- ===== Speed report (on request) ===== -->
+<section id="reportScreen" class="screen">
+  <div class="map-title">📊 Speed Report</div>
+  <div class="map-scroll"><div class="skill-list" id="repBody"></div></div>
+  <div class="btn-row">
+    <button class="big-btn btn-map" id="repCopyBtn">📋 Copy report</button>
+    <button class="big-btn btn-next" id="repBackBtn">◀ Back</button>
+  </div>
 </section>
 
 <div class="confetti" id="confetti" aria-hidden="true"></div>
@@ -315,10 +344,11 @@
   // ===================== State & persistence (separate per mode) =====================
   var LS_KEY = "g5_app_v1";   // { mode, ops:{best,correct,facts}, md:{...}, as:{...}, word:{...} }
   var SS_KEY = "g5_sess_v1";  // { ops:{points,sinceBonus,lastKind}, ... }
-  var MODES = ["ops", "md", "as", "word"];
+  var MODES = ["ops", "md", "as", "word", "speed"];
 
-  function blankStore() { return { best: 0, correct: 0, facts: {} }; }
-  function normStore(s) { s = s || {}; return { best: s.best || 0, correct: s.correct || 0, facts: s.facts || {} }; }
+  function blankStore() { return { best: 0, correct: 0, facts: {}, stats: {}, log: [], total: 0 }; }
+  function normStore(s) { s = s || {}; return { best: s.best || 0, correct: s.correct || 0, facts: s.facts || {},
+    stats: s.stats || {}, log: s.log || [], total: s.total || 0 }; }
   function blankSess() { return { points: 0, sinceBonus: 0, lastKind: "" }; }
   function normSess(s) { s = s || {}; return { points: s.points || 0, sinceBonus: s.sinceBonus || 0, lastKind: s.lastKind || "" }; }
 
@@ -703,6 +733,64 @@
       a + " × " + p + " + " + b + " × " + q, "", true, clue);
   });
 
+
+  // ===================== Speed mode (times tables) =====================
+  var SPEED_MIN_SAMPLE = 60;            // answers needed before problems start adapting
+  var SPEED_LO = 2, SPEED_HI = 12;
+  var lastPairKey = "";
+  function tick() { return (window.performance && performance.now) ? performance.now() : now(); }
+  function speedPoints(ms) { return ms <= 1000 ? 10 : ms <= 2000 ? 8 : ms <= 3000 ? 5 : ms <= 4000 ? 3 : 1; }
+  function secs(ms) { return (ms / 1000).toFixed(1) + "s"; }
+
+  function recordSpeed(a, b, ok, ms) {
+    var key = a + "×" + b;
+    var s = store.stats[key] || (store.stats[key] = { n: 0, c: 0, w: 0, ms: 0, cms: 0, best: 0, recent: [] });
+    s.n++; s.ms += ms;
+    if (ok) { s.c++; s.cms += ms; if (!s.best || ms < s.best) s.best = ms; } else s.w++;
+    s.recent.push(ok ? 1 : 0); if (s.recent.length > 6) s.recent.shift();
+    store.total++;
+    store.log.push([a, b, ok ? 1 : 0, Math.round(ms), now()]);
+    if (store.log.length > 1000) store.log.shift();
+  }
+  // How much extra practice a pair needs (higher = weaker). Smoothed so tiny samples don't swing wildly.
+  function pairWeight(a, b) {
+    var s = store.stats[a + "×" + b];
+    if (!s) return 2.5;                                   // never seen: keep exploring
+    var errRate = (s.w + 0.25) / (s.n + 0.5);
+    var avg = s.c ? s.cms / s.c : 6000;
+    var slow = Math.max(0, Math.min(1, (avg - 2000) / 4000));
+    var w = 1 + 8 * errRate + 4 * slow;
+    if (s.recent.length && s.recent[s.recent.length - 1] === 0) w += 3;   // just missed it
+    if (s.n >= 3 && s.w === 0 && avg <= 1500) w = 0.3;                    // solid and fast
+    return w;
+  }
+  function speedGen() {
+    var pairs = [], a, b, i;
+    for (a = SPEED_LO; a <= SPEED_HI; a++) for (b = SPEED_LO; b <= SPEED_HI; b++) pairs.push([a, b]);
+    var chosen = null;
+    for (var tries = 0; tries < 8 && !chosen; tries++) {
+      var cand;
+      if (store.total < SPEED_MIN_SAMPLE || Math.random() < 0.15) {
+        // coverage / exploration: favour pairs with the fewest attempts
+        var minN = 1e9;
+        pairs.forEach(function (p) { var s = store.stats[p[0] + "×" + p[1]]; var n = s ? s.n : 0; if (n < minN) minN = n; });
+        var pool = (store.total < SPEED_MIN_SAMPLE)
+          ? pairs.filter(function (p) { var s = store.stats[p[0] + "×" + p[1]]; return (s ? s.n : 0) === minN; })
+          : pairs;
+        cand = pick(pool);
+      } else {
+        var total = 0, ws = pairs.map(function (p) { var w = pairWeight(p[0], p[1]); total += w; return w; });
+        var r = Math.random() * total; cand = pairs[pairs.length - 1];
+        for (i = 0; i < pairs.length; i++) { r -= ws[i]; if (r <= 0) { cand = pairs[i]; break; } }
+      }
+      if (cand[0] + "×" + cand[1] !== lastPairKey) chosen = cand;
+    }
+    chosen = chosen || pick(pairs);
+    a = chosen[0]; b = chosen[1]; lastPairKey = a + "×" + b;
+    return { kindClass: "", html: a + " " + opSpan("×") + " " + b, plain: a + " × " + b, answer: a * b,
+      steps: mulSteps(a, b), tip: "Know it instantly — then speed will follow.", speed: true, a: a, b: b };
+  }
+
   // ===================== Skill lists per mode =====================
   var MODE_KINDS = {
     ops: [
@@ -732,6 +820,7 @@
       { key: "as:5+", name: "5-digit add", unlock: 22, gen: asGen(5, true) },
       { key: "as:5−", name: "5-digit subtract", unlock: 22, gen: asGen(5, false) }
     ],
+    speed: [ { key: "speed:mult", name: "Times tables", unlock: 0, gen: speedGen } ],
     word: [
       { key: "w:add", name: "Add story", unlock: 0, gen: wAdd },
       { key: "w:sub", name: "Subtract story", unlock: 0, gen: wSub },
@@ -777,7 +866,8 @@
     ops: "Remember: ( ) first, then × ÷, then + −",
     md: "Use scratch paper if you need it ✏️",
     as: "Use scratch paper if you need it ✏️",
-    word: "Read carefully, then solve ✏️"
+    word: "Read carefully, then solve ✏️",
+    speed: "⚡ Faster = more points!"
   };
 
   function newProblem() {
@@ -820,6 +910,7 @@
     problemText.innerHTML = current.html;
     document.getElementById("guessHint").textContent = HINTS[mode];
     renderTyped();
+    current.t0 = tick();
   }
   function renderTyped() {
     if (typed === "") { answerDisplay.textContent = "?"; answerDisplay.classList.add("empty"); }
@@ -834,8 +925,10 @@
   function pressBack() { typed = typed.slice(0, -1); renderTyped(); }
   function pressCheck() {
     if (typed === "") return;
+    var ms = tick() - (current.t0 || tick());
     var ok = (parseInt(typed, 10) === current.answer);
-    scheduleFact(current.kind, ok, now());
+    if (current.speed) { current.lastMs = ms; recordSpeed(current.a, current.b, ok, ms); saveStore(); }
+    else scheduleFact(current.kind, ok, now());
     if (ok) onCorrect(); else onWrong();
   }
   document.getElementById("keypad").addEventListener("click", function (e) {
@@ -861,6 +954,8 @@
     var between = (id === "celebrateScreen" || id === "teachScreen");
     topbar.classList.toggle("show", between);
     if (between) { updateScore(); updateModeUI(); }
+    var rb = ["celeRepBtn", "teachRepBtn", "mapRepBtn"];
+    for (var r = 0; r < rb.length; r++) document.getElementById(rb[r]).style.display = (mode === "speed") ? "" : "none";
   }
   function updateScore() {
     document.getElementById("scoreNum").textContent = sess.points;
@@ -911,12 +1006,15 @@
   var celeMsgs = ["You got it!", "Amazing!", "Brilliant!", "Super star!", "Math wizard!", "Way to go!", "Fantastic!", "Nailed it!"];
 
   function onCorrect() {
-    var gained = POINTS_PER;
-    sess.sinceBonus++;
+    var isSpeed = !!current.speed;
+    var gained = isSpeed ? speedPoints(current.lastMs) : POINTS_PER;
     var bonus = false;
-    if (sess.sinceBonus >= BONUS_HARD_CAP) bonus = true;
-    else if (sess.sinceBonus >= BONUS_MIN_GAP && Math.random() < 1 / (BONUS_MEAN - BONUS_MIN_GAP + 1)) bonus = true;
-    if (bonus) { gained += BONUS_POINTS; sess.sinceBonus = 0; }
+    if (!isSpeed) {
+      sess.sinceBonus++;
+      if (sess.sinceBonus >= BONUS_HARD_CAP) bonus = true;
+      else if (sess.sinceBonus >= BONUS_MIN_GAP && Math.random() < 1 / (BONUS_MEAN - BONUS_MIN_GAP + 1)) bonus = true;
+      if (bonus) { gained += BONUS_POINTS; sess.sinceBonus = 0; }
+    }
 
     sess.points += gained;
     store.correct += 1;
@@ -940,6 +1038,13 @@
       msgEl.classList.remove("bonus");
       subEl.textContent = "+" + POINTS_PER + " points";
       burst.classList.remove("gold");
+      if (isSpeed) {
+        var ms2 = current.lastMs;
+        emojiEl.textContent = ms2 <= 1000 ? "⚡" : ms2 <= 2000 ? "🚀" : ms2 <= 3000 ? "🌟" : ms2 <= 4000 ? "👍" : "🐢";
+        msgEl.textContent = ms2 <= 1000 ? "Lightning fast!" : ms2 <= 2000 ? "Super quick!" : ms2 <= 3000 ? "Nice and fast!" : ms2 <= 4000 ? "Good speed!" : "Correct!";
+        subEl.textContent = "+" + gained + " points · " + secs(ms2);
+        burst.classList.toggle("gold", ms2 <= 1000);
+      }
     }
     betweenScreen = "celebrateScreen";
     show("celebrateScreen");
@@ -1012,6 +1117,16 @@
   document.getElementById("celeMapBtn").addEventListener("click", openMap);
   document.getElementById("teachMapBtn").addEventListener("click", openMap);
   document.getElementById("mapBackBtn").addEventListener("click", function () { show(betweenScreen); });
+  ["celeRepBtn", "teachRepBtn", "mapRepBtn"].forEach(function (id) {
+    document.getElementById(id).addEventListener("click", function () { renderReport(); show("reportScreen"); });
+  });
+  document.getElementById("repBackBtn").addEventListener("click", function () { show(betweenScreen); });
+  document.getElementById("repCopyBtn").addEventListener("click", function () {
+    var btn = document.getElementById("repCopyBtn"), txt = reportText();
+    function done(ok) { btn.textContent = ok ? "✅ Copied!" : "Select & copy below"; setTimeout(function () { btn.textContent = "📋 Copy report"; }, 2000); }
+    try { navigator.clipboard.writeText(txt).then(function () { done(true); }, function () { done(false); }); }
+    catch (e) { done(false); }
+  });
   function openMap() { mapView = mode; renderMap(); show("mapScreen"); }
 
   document.getElementById("modeSeg").addEventListener("click", function (e) {
@@ -1025,7 +1140,45 @@
 
   // ===================== Skill map (per mode) =====================
   var mapView = "ops";
+  function renderSpeedMap() {
+    var vstore = data.speed, list = document.getElementById("mapList"); list.innerHTML = "";
+    var palette = ["#4a3a5a", "#6a4bd6", "#4f7fd0", "#3fa45c", "#7bd06a", "#ffd84d"], mastered = 0;
+    for (var t = SPEED_LO; t <= SPEED_HI; t++) {
+      var n = 0, c = 0, cms = 0, good = 0, pairsN = 0;
+      for (var x = SPEED_LO; x <= SPEED_HI; x++) {
+        [[t, x], [x, t]].forEach(function (p) {
+          pairsN++;
+          var s = vstore.stats[p[0] + "×" + p[1]]; if (!s) return;
+          n += s.n; c += s.c; cms += s.cms;
+          var last3 = s.recent.slice(-3), solid = s.n >= 3 && last3.length >= 3 && last3.every(function (v) { return v === 1; }) && s.c && (s.cms / s.c) <= 2500;
+          if (solid) good++;
+        });
+      }
+      var frac = good / pairsN, filled = n ? Math.max(1, Math.round(frac * 5)) : 0;
+      if (frac >= 0.8) mastered++;
+      var row = document.createElement("div"); row.className = "skill-row";
+      var left = document.createElement("div");
+      var nm1 = document.createElement("div"); nm1.className = "skill-name"; nm1.textContent = "× " + t + " table";
+      var sub = document.createElement("div"); sub.className = "skill-sub";
+      sub.textContent = n ? Math.round(100 * c / n) + "% right · avg " + (c ? secs(cms / c) : "–") + " · " + n + " answers" : "Not tried yet";
+      left.appendChild(nm1); left.appendChild(sub);
+      var meter = document.createElement("div"); meter.className = "skill-meter";
+      for (var i = 0; i < 5; i++) {
+        var pip = document.createElement("span"); pip.className = "skill-pip";
+        if (i < filled) pip.style.background = palette[Math.min(5, 1 + i)];
+        meter.appendChild(pip);
+      }
+      row.appendChild(left); row.appendChild(meter); list.appendChild(row);
+    }
+    document.getElementById("mapSub").textContent = mastered + (mastered === 1 ? " table" : " tables") + " mastered (right + under 2.5s)! ⚡";
+  }
   function renderMap() {
+    var tabs0 = document.querySelectorAll("#mapTabs .seg-btn");
+    if (mapView === "speed") {
+      renderSpeedMap();
+      for (var q = 0; q < tabs0.length; q++) tabs0[q].classList.toggle("active", tabs0[q].getAttribute("data-vm") === mapView);
+      return;
+    }
     var vstore = data[mapView], kinds = MODE_KINDS[mapView];
     var list = document.getElementById("mapList"); list.innerHTML = "";
     var palette = ["#4a3a5a", "#6a4bd6", "#4f7fd0", "#3fa45c", "#7bd06a", "#ffd84d"];
@@ -1051,6 +1204,77 @@
     document.getElementById("mapSub").textContent = mastered + (mastered === 1 ? " skill" : " skills") + " mastered! Keep going ⭐";
     var tabs = document.querySelectorAll("#mapTabs .seg-btn");
     for (var j = 0; j < tabs.length; j++) tabs[j].classList.toggle("active", tabs[j].getAttribute("data-vm") === mapView);
+  }
+
+
+  // ===================== Speed report (on request) =====================
+  function pairStats() {
+    var out = [];
+    for (var key in store.stats) {
+      var s = store.stats[key], ab = key.split("×");
+      out.push({ a: +ab[0], b: +ab[1], key: key, s: s, avg: s.c ? s.cms / s.c : null, acc: s.c / s.n });
+    }
+    return out;
+  }
+  function buildReport() {
+    var ps = pairStats(), R = { total: store.total, correct: 0, ms: 0, tiers: [0, 0, 0, 0, 0], points: 0 };
+    store.log.forEach(function (e) {
+      if (e[2]) { R.correct++; R.ms += e[3]; var pt = speedPoints(e[3]); R.points += pt; R.tiers[pt === 10 ? 0 : pt === 8 ? 1 : pt === 5 ? 2 : pt === 3 ? 3 : 4]++; }
+    });
+    R.logN = store.log.length;
+    R.weak = ps.filter(function (p) { return p.s.n >= 2; })
+      .map(function (p) { return { p: p, w: pairWeight(p.a, p.b) }; })
+      .sort(function (x, y) { return y.w - x.w; }).slice(0, 6).map(function (x) { return x.p; });
+    R.slow = ps.filter(function (p) { return p.s.c >= 2; }).sort(function (x, y) { return y.avg - x.avg; }).slice(0, 5);
+    R.tables = [];
+    for (var t = SPEED_LO; t <= SPEED_HI; t++) {
+      var n = 0, c = 0, cms = 0;
+      ps.forEach(function (p) { if (p.a === t || p.b === t) { n += p.s.n; c += p.s.c; cms += p.s.cms; } });
+      R.tables.push({ t: t, n: n, acc: n ? c / n : null, avg: c ? cms / c : null });
+    }
+    R.order = [];
+    ps.forEach(function (p) {
+      if (p.a >= p.b || p.avg == null || p.s.c < 2) return;
+      var q = store.stats[p.b + "×" + p.a];
+      if (!q || q.c < 2) return;
+      var qa = q.cms / q.c, d = p.avg - qa;
+      if (Math.abs(d) >= 800) R.order.push({ slowK: d > 0 ? p.key : p.b + "×" + p.a, fastK: d > 0 ? p.b + "×" + p.a : p.key, d: Math.abs(d) });
+    });
+    R.order.sort(function (x, y) { return y.d - x.d; }); R.order = R.order.slice(0, 3);
+    R.adapting = store.total >= SPEED_MIN_SAMPLE;
+    return R;
+  }
+  function pairLine(p) {
+    return p.a + " × " + p.b + " — " + Math.round(100 * p.acc) + "% right" + (p.avg != null ? ", avg " + secs(p.avg) : "") + " (" + p.s.n + " tries)";
+  }
+  function reportText() {
+    var R = buildReport(), L = [];
+    L.push("SPEED REPORT — times tables");
+    L.push("Answers: " + R.total + " | Correct: " + R.correct + " (" + (R.total ? Math.round(100 * R.correct / R.total) : 0) + "%) | Avg speed when right: " + (R.correct ? secs(R.ms / R.correct) : "–"));
+    L.push("Speed tiers (correct answers): ≤1s " + R.tiers[0] + " · ≤2s " + R.tiers[1] + " · ≤3s " + R.tiers[2] + " · ≤4s " + R.tiers[3] + " · slower " + R.tiers[4]);
+    L.push(R.adapting ? "Practice is now adapting to weak/slow facts." : "Still collecting data (" + R.total + "/" + SPEED_MIN_SAMPLE + " answers) before adapting.");
+    L.push(""); L.push("Needs the most work:"); R.weak.forEach(function (p) { L.push("  " + pairLine(p)); });
+    L.push(""); L.push("Slowest (when correct):"); R.slow.forEach(function (p) { L.push("  " + pairLine(p)); });
+    L.push(""); L.push("By table:"); R.tables.forEach(function (x) { L.push("  ×" + x.t + ": " + (x.n ? Math.round(100 * x.acc) + "% right, avg " + (x.avg != null ? secs(x.avg) : "–") + " (" + x.n + ")" : "no data")); });
+    if (R.order.length) { L.push(""); L.push("Order matters:"); R.order.forEach(function (o) { L.push("  " + o.slowK.replace("×", " × ") + " is " + secs(o.d) + " slower than " + o.fastK.replace("×", " × ")); }); }
+    return L.join("\n");
+  }
+  function renderReport() {
+    var R = buildReport(), el = document.getElementById("repBody");
+    function sec(title, rows) { return '<div class="rep-h">' + title + '</div>' + (rows.length ? rows.join("") : '<div class="rep-empty">Not enough data yet</div>'); }
+    function row(l, r) { return '<div class="skill-row"><div class="skill-name">' + l + '</div><div class="skill-sub rep-r">' + r + '</div></div>'; }
+    var h = '';
+    h += '<div class="rep-cards">' +
+      '<div class="rep-card"><b>' + R.total + '</b><span>answers</span></div>' +
+      '<div class="rep-card"><b>' + (R.total ? Math.round(100 * R.correct / R.total) : 0) + '%</b><span>correct</span></div>' +
+      '<div class="rep-card"><b>' + (R.correct ? secs(R.ms / R.correct) : "–") + '</b><span>avg speed</span></div></div>';
+    h += '<div class="rep-note">' + (R.adapting ? "🎯 Practice is now adapting to the facts that need work." : "📊 Collecting data: " + R.total + "/" + SPEED_MIN_SAMPLE + " answers before problems adapt.") + '</div>';
+    h += sec("⚡ Speed tiers", [row("≤ 1 sec · 10 pts", R.tiers[0]), row("≤ 2 sec · 8 pts", R.tiers[1]), row("≤ 3 sec · 5 pts", R.tiers[2]), row("≤ 4 sec · 3 pts", R.tiers[3]), row("slower · 1 pt", R.tiers[4])]);
+    h += sec("🎯 Needs the most work", R.weak.map(function (p) { return row(p.a + " × " + p.b, Math.round(100 * p.acc) + "% · " + (p.avg != null ? secs(p.avg) : "–") + " · " + p.s.n + "x"); }));
+    h += sec("🐢 Slowest when correct", R.slow.map(function (p) { return row(p.a + " × " + p.b, secs(p.avg) + " avg · " + p.s.c + "x"); }));
+    h += sec("📚 By table", R.tables.map(function (x) { return row("× " + x.t, x.n ? Math.round(100 * x.acc) + "% · " + (x.avg != null ? secs(x.avg) : "–") + " · " + x.n + "x" : "no data"); }));
+    if (R.order.length) h += sec("🔀 Order matters", R.order.map(function (o) { return row(o.slowK.replace("×", " × "), secs(o.d) + " slower than " + o.fastK.replace("×", " × ")); }));
+    el.innerHTML = h;
   }
 
   // ===================== Confetti =====================
@@ -1098,6 +1322,7 @@
     window.__G5_TEST.kinds = MODE_KINDS;
     window.__G5_TEST.setCorrect = function (m, n) { data[m].correct = n; };
     window.__G5_TEST.use = function (m) { mode = m; store = data[m]; sess = sessData[m]; };
+    window.__G5_TEST.speed = { gen: speedGen, rec: recordSpeed, pts: speedPoints, report: reportText, build: buildReport, weight: pairWeight, store: function () { return data.speed; } };
     window.__G5_TEST.solve = function (s) { return solveSteps(parseExpr(s)); };
   }
 
