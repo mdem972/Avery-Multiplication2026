@@ -225,22 +225,34 @@
   .rep-h { font-size: clamp(15px, 4.2vw, 19px); font-weight: 800; color: #ffd84d; margin: 8px 2px 0; text-align: left; }
   .rep-empty { font-size: 14px; color: #8a8f9e; text-align: left; padding: 0 4px; }
   .rep-r { font-size: clamp(13px, 3.6vw, 16px); color: #cfd2e0; text-align: right; margin: 0; }
+
+  :root { --hdr: 112px; }
+  #problemScreen, #estimateScreen { padding-top: calc(max(env(safe-area-inset-top), 10px) + var(--hdr)); }
+  .mode-seg { gap: 2px; padding: 3px; }
+  .mode-seg .seg-btn { font-size: clamp(12px, 3.5vw, 16px); padding: 8px clamp(7px, 2.2vw, 12px); }
+  .seg-btn.m-speed { color: #e8c24a; }
+  .seg-btn.m-speed.active { background: #e0b020; color: #000; }
+  .mode-desc { font-size: clamp(11px, 3.1vw, 13px); font-weight: 800; color: #8a8f9e; letter-spacing: .4px; text-align: center; }
+  .mode-desc.speed { color: #ffd84d; }
+  .guess-hint { text-align: center; padding: 0 10px; }
 </style>
 </head>
 <body>
 
 <div class="topbar" id="topbar" aria-hidden="true">
   <div class="mode-seg" id="modeSeg" aria-label="choose mode">
-    <button class="seg-btn m-ops" data-mode="ops">( ) Order</button>
-    <button class="seg-btn m-md" data-mode="md">× ÷</button>
-    <button class="seg-btn m-as" data-mode="as">+ −</button>
-    <button class="seg-btn m-word" data-mode="word">📖 Words</button>
-    <button class="seg-btn m-speed" data-mode="speed">⚡ Speed</button>
+    <button class="seg-btn m-ops" data-mode="ops" title="Order of operations" aria-label="Order of operations">( )</button>
+    <button class="seg-btn m-md" data-mode="md" title="Multiply and divide" aria-label="Multiply and divide">× ÷</button>
+    <button class="seg-btn m-as" data-mode="as" title="Add and subtract" aria-label="Add and subtract">+ −</button>
+    <button class="seg-btn m-word" data-mode="word" title="Word problems" aria-label="Word problems">📖</button>
+    <button class="seg-btn m-speed" data-mode="speed" title="Times tables with speed scoring" aria-label="Times tables, speed scoring">⚡ ×</button>
+    <button class="seg-btn m-speed" data-mode="spadd" title="Quick addition with speed scoring" aria-label="Quick addition, speed scoring">⚡ +</button>
   </div>
   <div class="tb-scoreline">
     <span class="tb-score">⭐ <b id="scoreNum">0</b></span>
     <span class="tb-best">Best <b id="bestNum">0</b></span>
   </div>
+  <div class="mode-desc" id="modeDesc"></div>
 </div>
 
 <!-- ===== Estimation (occasional, focus-only) ===== -->
@@ -315,7 +327,8 @@
     <button class="seg-btn m-md" data-vm="md">× ÷</button>
     <button class="seg-btn m-as" data-vm="as">+ −</button>
     <button class="seg-btn m-word" data-vm="word">📖 Words</button>
-    <button class="seg-btn m-speed" data-vm="speed">⚡ Speed</button>
+    <button class="seg-btn m-speed" data-vm="speed">⚡ × Tables</button>
+    <button class="seg-btn m-speed" data-vm="spadd">⚡ + Quick add</button>
   </div>
   <div class="map-sub" id="mapSub"></div>
   <div class="map-scroll"><div class="skill-list" id="mapList"></div></div>
@@ -327,7 +340,7 @@
 
 <!-- ===== Speed report (on request) ===== -->
 <section id="reportScreen" class="screen">
-  <div class="map-title">📊 Speed Report</div>
+  <div class="map-title" id="repTitle">📊 Speed Report</div>
   <div class="map-scroll"><div class="skill-list" id="repBody"></div></div>
   <div class="btn-row">
     <button class="big-btn btn-map" id="repCopyBtn">📋 Copy report</button>
@@ -344,7 +357,7 @@
   // ===================== State & persistence (separate per mode) =====================
   var LS_KEY = "g5_app_v1";   // { mode, ops:{best,correct,facts}, md:{...}, as:{...}, word:{...} }
   var SS_KEY = "g5_sess_v1";  // { ops:{points,sinceBonus,lastKind}, ... }
-  var MODES = ["ops", "md", "as", "word", "speed"];
+  var MODES = ["ops", "md", "as", "word", "speed", "spadd"];
 
   function blankStore() { return { best: 0, correct: 0, facts: {}, stats: {}, log: [], total: 0 }; }
   function normStore(s) { s = s || {}; return { best: s.best || 0, correct: s.correct || 0, facts: s.facts || {},
@@ -359,6 +372,15 @@
     raw = raw || {};
     d.mode = (MODES.indexOf(raw.mode) >= 0) ? raw.mode : "ops";
     MODES.forEach(function (m) { d[m] = normStore(raw[m]); });
+    ["speed", "spadd"].forEach(function (m) {            // keep only numbers 1–10
+      var st = d[m], tot = 0;
+      for (var k in st.stats) {
+        var ab = k.split(m === "speed" ? "×" : "+");
+        if (+ab[0] > 10 || +ab[1] > 10 || +ab[0] < 1 || +ab[1] < 1) delete st.stats[k]; else tot += st.stats[k].n;
+      }
+      st.log = st.log.filter(function (e) { return e[0] >= 1 && e[0] <= 10 && e[1] >= 1 && e[1] <= 10; });
+      st.total = tot;
+    });
     return d;
   }
   function loadSessAll() {
@@ -734,16 +756,35 @@
   });
 
 
-  // ===================== Speed mode (times tables) =====================
+  // ===================== Speed modes: × tables and quick addition (numbers 1–10) =====================
   var SPEED_MIN_SAMPLE = 60;            // answers needed before problems start adapting
-  var SPEED_LO = 2, SPEED_HI = 12;
+  function addFactSteps(a, b) {
+    var x = Math.max(a, b), y = Math.min(a, b), need = 10 - x, steps = [];
+    if (x + y <= 10 || need <= 0 || y < need) { steps.push({ label: "Add", calc: a + " + " + b + " = " + hl(a + b) }); return steps; }
+    steps.push({ note: "Make a 10 first!" });
+    steps.push({ label: "Fill up to 10", calc: x + " + " + need + " = 10", state: "Used " + need + " of the " + y + " → " + (y - need) + " left" });
+    steps.push({ label: "Add what is left", calc: "10 + " + (y - need) + " = " + hl(a + b) });
+    return steps;
+  }
+  function speedMulSteps(a, b) {
+    if (a === 1 || b === 1) return [{ note: "Anything times 1 stays the same." }, { label: "Multiply", calc: a + " × " + b + " = " + hl(a * b) }];
+    if (a === 10 || b === 10) { var o = (a === 10) ? b : a; return [{ note: "Times 10: put a 0 on the end." }, { label: "Multiply", calc: a + " × " + b + " = " + hl(o * 10) }]; }
+    return mulSteps(a, b);
+  }
+  var SPEED_CFG = {
+    speed: { sym: "×", lo: 1, hi: 10, calc: function (a, b) { return a * b; }, steps: speedMulSteps,
+      tip: "Know it instantly — then speed will follow.", name: "Times tables", mapLabel: function (n) { return "× " + n + " table"; } },
+    spadd: { sym: "+", lo: 1, hi: 10, calc: function (a, b) { return a + b; }, steps: addFactSteps,
+      tip: "Make a 10, then add the rest — it is quick!", name: "Quick addition", mapLabel: function (n) { return "+ " + n + " facts"; } }
+  };
+  function isSpeedMode(m) { return m === "speed" || m === "spadd"; }
   var lastPairKey = "";
   function tick() { return (window.performance && performance.now) ? performance.now() : now(); }
   function speedPoints(ms) { return ms <= 1000 ? 10 : ms <= 2000 ? 8 : ms <= 3000 ? 5 : ms <= 4000 ? 3 : 1; }
   function secs(ms) { return (ms / 1000).toFixed(1) + "s"; }
 
   function recordSpeed(a, b, ok, ms) {
-    var key = a + "×" + b;
+    var key = a + SPEED_CFG[mode].sym + b;
     var s = store.stats[key] || (store.stats[key] = { n: 0, c: 0, w: 0, ms: 0, cms: 0, best: 0, recent: [] });
     s.n++; s.ms += ms;
     if (ok) { s.c++; s.cms += ms; if (!s.best || ms < s.best) s.best = ms; } else s.w++;
@@ -754,7 +795,7 @@
   }
   // How much extra practice a pair needs (higher = weaker). Smoothed so tiny samples don't swing wildly.
   function pairWeight(a, b) {
-    var s = store.stats[a + "×" + b];
+    var s = store.stats[a + SPEED_CFG[mode].sym + b];
     if (!s) return 2.5;                                   // never seen: keep exploring
     var errRate = (s.w + 0.25) / (s.n + 0.5);
     var avg = s.c ? s.cms / s.c : 6000;
@@ -765,17 +806,17 @@
     return w;
   }
   function speedGen() {
-    var pairs = [], a, b, i;
-    for (a = SPEED_LO; a <= SPEED_HI; a++) for (b = SPEED_LO; b <= SPEED_HI; b++) pairs.push([a, b]);
+    var C = SPEED_CFG[mode], pairs = [], a, b, i;
+    for (a = C.lo; a <= C.hi; a++) for (b = C.lo; b <= C.hi; b++) pairs.push([a, b]);
     var chosen = null;
     for (var tries = 0; tries < 8 && !chosen; tries++) {
       var cand;
       if (store.total < SPEED_MIN_SAMPLE || Math.random() < 0.15) {
         // coverage / exploration: favour pairs with the fewest attempts
         var minN = 1e9;
-        pairs.forEach(function (p) { var s = store.stats[p[0] + "×" + p[1]]; var n = s ? s.n : 0; if (n < minN) minN = n; });
+        pairs.forEach(function (p) { var s = store.stats[p[0] + C.sym + p[1]]; var n = s ? s.n : 0; if (n < minN) minN = n; });
         var pool = (store.total < SPEED_MIN_SAMPLE)
-          ? pairs.filter(function (p) { var s = store.stats[p[0] + "×" + p[1]]; return (s ? s.n : 0) === minN; })
+          ? pairs.filter(function (p) { var s = store.stats[p[0] + C.sym + p[1]]; return (s ? s.n : 0) === minN; })
           : pairs;
         cand = pick(pool);
       } else {
@@ -783,12 +824,12 @@
         var r = Math.random() * total; cand = pairs[pairs.length - 1];
         for (i = 0; i < pairs.length; i++) { r -= ws[i]; if (r <= 0) { cand = pairs[i]; break; } }
       }
-      if (cand[0] + "×" + cand[1] !== lastPairKey) chosen = cand;
+      if (mode + cand[0] + C.sym + cand[1] !== lastPairKey) chosen = cand;
     }
     chosen = chosen || pick(pairs);
-    a = chosen[0]; b = chosen[1]; lastPairKey = a + "×" + b;
-    return { kindClass: "", html: a + " " + opSpan("×") + " " + b, plain: a + " × " + b, answer: a * b,
-      steps: mulSteps(a, b), tip: "Know it instantly — then speed will follow.", speed: true, a: a, b: b };
+    a = chosen[0]; b = chosen[1]; lastPairKey = mode + a + C.sym + b;
+    return { kindClass: "", html: a + " " + opSpan(C.sym) + " " + b, plain: a + " " + C.sym + " " + b, answer: C.calc(a, b),
+      steps: C.steps(a, b), tip: C.tip, speed: true, a: a, b: b };
   }
 
   // ===================== Skill lists per mode =====================
@@ -821,6 +862,7 @@
       { key: "as:5−", name: "5-digit subtract", unlock: 22, gen: asGen(5, false) }
     ],
     speed: [ { key: "speed:mult", name: "Times tables", unlock: 0, gen: speedGen } ],
+    spadd: [ { key: "speed:add", name: "Quick addition", unlock: 0, gen: speedGen } ],
     word: [
       { key: "w:add", name: "Add story", unlock: 0, gen: wAdd },
       { key: "w:sub", name: "Subtract story", unlock: 0, gen: wSub },
@@ -858,16 +900,27 @@
   function updateModeUI() {
     var bs = document.querySelectorAll("#modeSeg .seg-btn");
     for (var i = 0; i < bs.length; i++) bs[i].classList.toggle("active", bs[i].getAttribute("data-mode") === mode);
+    var md = document.getElementById("modeDesc");
+    md.textContent = MODE_DESC[mode]; md.className = "mode-desc" + (isSpeedMode(mode) ? " speed" : "");
   }
 
   // ===================== Problem generation =====================
+  var MODE_DESC = {
+    ops: "Order of operations · 10 points each",
+    md: "Multiply & divide · 10 points each",
+    as: "Add & subtract · 10 points each",
+    word: "Word problems · 10 points each",
+    speed: "⚡ TIMES TABLES 1–10 · SPEED SCORING",
+    spadd: "⚡ QUICK ADDITION 1–10 · SPEED SCORING"
+  };
   var current = { answer: 0, plain: "", html: "", steps: [], kind: "" };
   var HINTS = {
     ops: "Remember: ( ) first, then × ÷, then + −",
     md: "Use scratch paper if you need it ✏️",
     as: "Use scratch paper if you need it ✏️",
     word: "Read carefully, then solve ✏️",
-    speed: "⚡ Faster = more points!"
+    speed: "⚡ ≤1s = 10 · ≤2s = 8 · ≤3s = 5 · ≤4s = 3 · slower = 1",
+    spadd: "⚡ ≤1s = 10 · ≤2s = 8 · ≤3s = 5 · ≤4s = 3 · slower = 1"
   };
 
   function newProblem() {
@@ -951,11 +1004,11 @@
     var screens = document.querySelectorAll(".screen");
     for (var i = 0; i < screens.length; i++) screens[i].classList.remove("active");
     document.getElementById(id).classList.add("active");
-    var between = (id === "celebrateScreen" || id === "teachScreen");
-    topbar.classList.toggle("show", between);
-    if (between) { updateScore(); updateModeUI(); }
+    var bar = (id !== "mapScreen" && id !== "reportScreen");
+    topbar.classList.toggle("show", bar);
+    if (bar) { updateScore(); updateModeUI(); }
     var rb = ["celeRepBtn", "teachRepBtn", "mapRepBtn"];
-    for (var r = 0; r < rb.length; r++) document.getElementById(rb[r]).style.display = (mode === "speed") ? "" : "none";
+    for (var r = 0; r < rb.length; r++) document.getElementById(rb[r]).style.display = isSpeedMode(mode) ? "" : "none";
   }
   function updateScore() {
     document.getElementById("scoreNum").textContent = sess.points;
@@ -1140,15 +1193,15 @@
 
   // ===================== Skill map (per mode) =====================
   var mapView = "ops";
-  function renderSpeedMap() {
-    var vstore = data.speed, list = document.getElementById("mapList"); list.innerHTML = "";
+  function renderSpeedMap(m) {
+    var C = SPEED_CFG[m], vstore = data[m], list = document.getElementById("mapList"); list.innerHTML = "";
     var palette = ["#4a3a5a", "#6a4bd6", "#4f7fd0", "#3fa45c", "#7bd06a", "#ffd84d"], mastered = 0;
-    for (var t = SPEED_LO; t <= SPEED_HI; t++) {
+    for (var t = C.lo; t <= C.hi; t++) {
       var n = 0, c = 0, cms = 0, good = 0, pairsN = 0;
-      for (var x = SPEED_LO; x <= SPEED_HI; x++) {
+      for (var x = C.lo; x <= C.hi; x++) {
         [[t, x], [x, t]].forEach(function (p) {
           pairsN++;
-          var s = vstore.stats[p[0] + "×" + p[1]]; if (!s) return;
+          var s = vstore.stats[p[0] + C.sym + p[1]]; if (!s) return;
           n += s.n; c += s.c; cms += s.cms;
           var last3 = s.recent.slice(-3), solid = s.n >= 3 && last3.length >= 3 && last3.every(function (v) { return v === 1; }) && s.c && (s.cms / s.c) <= 2500;
           if (solid) good++;
@@ -1158,7 +1211,7 @@
       if (frac >= 0.8) mastered++;
       var row = document.createElement("div"); row.className = "skill-row";
       var left = document.createElement("div");
-      var nm1 = document.createElement("div"); nm1.className = "skill-name"; nm1.textContent = "× " + t + " table";
+      var nm1 = document.createElement("div"); nm1.className = "skill-name"; nm1.textContent = C.mapLabel(t);
       var sub = document.createElement("div"); sub.className = "skill-sub";
       sub.textContent = n ? Math.round(100 * c / n) + "% right · avg " + (c ? secs(cms / c) : "–") + " · " + n + " answers" : "Not tried yet";
       left.appendChild(nm1); left.appendChild(sub);
@@ -1170,12 +1223,12 @@
       }
       row.appendChild(left); row.appendChild(meter); list.appendChild(row);
     }
-    document.getElementById("mapSub").textContent = mastered + (mastered === 1 ? " table" : " tables") + " mastered (right + under 2.5s)! ⚡";
+    document.getElementById("mapSub").textContent = mastered + (mastered === 1 ? " number" : " numbers") + " mastered (right + under 2.5s)! ⚡";
   }
   function renderMap() {
     var tabs0 = document.querySelectorAll("#mapTabs .seg-btn");
-    if (mapView === "speed") {
-      renderSpeedMap();
+    if (isSpeedMode(mapView)) {
+      renderSpeedMap(mapView);
       for (var q = 0; q < tabs0.length; q++) tabs0[q].classList.toggle("active", tabs0[q].getAttribute("data-vm") === mapView);
       return;
     }
@@ -1209,25 +1262,24 @@
 
   // ===================== Speed report (on request) =====================
   function pairStats() {
-    var out = [];
+    var out = [], sym = SPEED_CFG[mode].sym;
     for (var key in store.stats) {
-      var s = store.stats[key], ab = key.split("×");
+      var s = store.stats[key], ab = key.split(sym);
       out.push({ a: +ab[0], b: +ab[1], key: key, s: s, avg: s.c ? s.cms / s.c : null, acc: s.c / s.n });
     }
     return out;
   }
   function buildReport() {
-    var ps = pairStats(), R = { total: store.total, correct: 0, ms: 0, tiers: [0, 0, 0, 0, 0], points: 0 };
+    var C = SPEED_CFG[mode], ps = pairStats(), R = { total: store.total, correct: 0, ms: 0, tiers: [0, 0, 0, 0, 0], points: 0, name: C.name };
     store.log.forEach(function (e) {
       if (e[2]) { R.correct++; R.ms += e[3]; var pt = speedPoints(e[3]); R.points += pt; R.tiers[pt === 10 ? 0 : pt === 8 ? 1 : pt === 5 ? 2 : pt === 3 ? 3 : 4]++; }
     });
-    R.logN = store.log.length;
     R.weak = ps.filter(function (p) { return p.s.n >= 2; })
       .map(function (p) { return { p: p, w: pairWeight(p.a, p.b) }; })
       .sort(function (x, y) { return y.w - x.w; }).slice(0, 6).map(function (x) { return x.p; });
     R.slow = ps.filter(function (p) { return p.s.c >= 2; }).sort(function (x, y) { return y.avg - x.avg; }).slice(0, 5);
     R.tables = [];
-    for (var t = SPEED_LO; t <= SPEED_HI; t++) {
+    for (var t = C.lo; t <= C.hi; t++) {
       var n = 0, c = 0, cms = 0;
       ps.forEach(function (p) { if (p.a === t || p.b === t) { n += p.s.n; c += p.s.c; cms += p.s.cms; } });
       R.tables.push({ t: t, n: n, acc: n ? c / n : null, avg: c ? cms / c : null });
@@ -1235,32 +1287,34 @@
     R.order = [];
     ps.forEach(function (p) {
       if (p.a >= p.b || p.avg == null || p.s.c < 2) return;
-      var q = store.stats[p.b + "×" + p.a];
+      var q = store.stats[p.b + C.sym + p.a];
       if (!q || q.c < 2) return;
       var qa = q.cms / q.c, d = p.avg - qa;
-      if (Math.abs(d) >= 800) R.order.push({ slowK: d > 0 ? p.key : p.b + "×" + p.a, fastK: d > 0 ? p.b + "×" + p.a : p.key, d: Math.abs(d) });
+      if (Math.abs(d) >= 800) R.order.push({ slowK: d > 0 ? p.key : p.b + C.sym + p.a, fastK: d > 0 ? p.b + C.sym + p.a : p.key, d: Math.abs(d) });
     });
     R.order.sort(function (x, y) { return y.d - x.d; }); R.order = R.order.slice(0, 3);
     R.adapting = store.total >= SPEED_MIN_SAMPLE;
     return R;
   }
+  function sp(k) { return k.replace(SPEED_CFG[mode].sym, " " + SPEED_CFG[mode].sym + " "); }
   function pairLine(p) {
-    return p.a + " × " + p.b + " — " + Math.round(100 * p.acc) + "% right" + (p.avg != null ? ", avg " + secs(p.avg) : "") + " (" + p.s.n + " tries)";
+    return p.a + " " + SPEED_CFG[mode].sym + " " + p.b + " — " + Math.round(100 * p.acc) + "% right" + (p.avg != null ? ", avg " + secs(p.avg) : "") + " (" + p.s.n + " tries)";
   }
   function reportText() {
-    var R = buildReport(), L = [];
-    L.push("SPEED REPORT — times tables");
+    var R = buildReport(), L = [], sym = SPEED_CFG[mode].sym;
+    L.push("SPEED REPORT — " + R.name + " (1–10)");
     L.push("Answers: " + R.total + " | Correct: " + R.correct + " (" + (R.total ? Math.round(100 * R.correct / R.total) : 0) + "%) | Avg speed when right: " + (R.correct ? secs(R.ms / R.correct) : "–"));
     L.push("Speed tiers (correct answers): ≤1s " + R.tiers[0] + " · ≤2s " + R.tiers[1] + " · ≤3s " + R.tiers[2] + " · ≤4s " + R.tiers[3] + " · slower " + R.tiers[4]);
     L.push(R.adapting ? "Practice is now adapting to weak/slow facts." : "Still collecting data (" + R.total + "/" + SPEED_MIN_SAMPLE + " answers) before adapting.");
     L.push(""); L.push("Needs the most work:"); R.weak.forEach(function (p) { L.push("  " + pairLine(p)); });
     L.push(""); L.push("Slowest (when correct):"); R.slow.forEach(function (p) { L.push("  " + pairLine(p)); });
-    L.push(""); L.push("By table:"); R.tables.forEach(function (x) { L.push("  ×" + x.t + ": " + (x.n ? Math.round(100 * x.acc) + "% right, avg " + (x.avg != null ? secs(x.avg) : "–") + " (" + x.n + ")" : "no data")); });
-    if (R.order.length) { L.push(""); L.push("Order matters:"); R.order.forEach(function (o) { L.push("  " + o.slowK.replace("×", " × ") + " is " + secs(o.d) + " slower than " + o.fastK.replace("×", " × ")); }); }
+    L.push(""); L.push("By number:"); R.tables.forEach(function (x) { L.push("  " + sym + x.t + ": " + (x.n ? Math.round(100 * x.acc) + "% right, avg " + (x.avg != null ? secs(x.avg) : "–") + " (" + x.n + ")" : "no data")); });
+    if (R.order.length) { L.push(""); L.push("Order matters:"); R.order.forEach(function (o) { L.push("  " + sp(o.slowK) + " is " + secs(o.d) + " slower than " + sp(o.fastK)); }); }
     return L.join("\n");
   }
   function renderReport() {
-    var R = buildReport(), el = document.getElementById("repBody");
+    var R = buildReport(), el = document.getElementById("repBody"), C = SPEED_CFG[mode];
+    document.getElementById("repTitle").textContent = "📊 " + C.name + " Report";
     function sec(title, rows) { return '<div class="rep-h">' + title + '</div>' + (rows.length ? rows.join("") : '<div class="rep-empty">Not enough data yet</div>'); }
     function row(l, r) { return '<div class="skill-row"><div class="skill-name">' + l + '</div><div class="skill-sub rep-r">' + r + '</div></div>'; }
     var h = '';
@@ -1270,10 +1324,10 @@
       '<div class="rep-card"><b>' + (R.correct ? secs(R.ms / R.correct) : "–") + '</b><span>avg speed</span></div></div>';
     h += '<div class="rep-note">' + (R.adapting ? "🎯 Practice is now adapting to the facts that need work." : "📊 Collecting data: " + R.total + "/" + SPEED_MIN_SAMPLE + " answers before problems adapt.") + '</div>';
     h += sec("⚡ Speed tiers", [row("≤ 1 sec · 10 pts", R.tiers[0]), row("≤ 2 sec · 8 pts", R.tiers[1]), row("≤ 3 sec · 5 pts", R.tiers[2]), row("≤ 4 sec · 3 pts", R.tiers[3]), row("slower · 1 pt", R.tiers[4])]);
-    h += sec("🎯 Needs the most work", R.weak.map(function (p) { return row(p.a + " × " + p.b, Math.round(100 * p.acc) + "% · " + (p.avg != null ? secs(p.avg) : "–") + " · " + p.s.n + "x"); }));
-    h += sec("🐢 Slowest when correct", R.slow.map(function (p) { return row(p.a + " × " + p.b, secs(p.avg) + " avg · " + p.s.c + "x"); }));
-    h += sec("📚 By table", R.tables.map(function (x) { return row("× " + x.t, x.n ? Math.round(100 * x.acc) + "% · " + (x.avg != null ? secs(x.avg) : "–") + " · " + x.n + "x" : "no data"); }));
-    if (R.order.length) h += sec("🔀 Order matters", R.order.map(function (o) { return row(o.slowK.replace("×", " × "), secs(o.d) + " slower than " + o.fastK.replace("×", " × ")); }));
+    h += sec("🎯 Needs the most work", R.weak.map(function (p) { return row(p.a + " " + C.sym + " " + p.b, Math.round(100 * p.acc) + "% · " + (p.avg != null ? secs(p.avg) : "–") + " · " + p.s.n + "x"); }));
+    h += sec("🐢 Slowest when correct", R.slow.map(function (p) { return row(p.a + " " + C.sym + " " + p.b, secs(p.avg) + " avg · " + p.s.c + "x"); }));
+    h += sec("📚 By number", R.tables.map(function (x) { return row(C.sym + " " + x.t, x.n ? Math.round(100 * x.acc) + "% · " + (x.avg != null ? secs(x.avg) : "–") + " · " + x.n + "x" : "no data"); }));
+    if (R.order.length) h += sec("🔀 Order matters", R.order.map(function (o) { return row(sp(o.slowK), secs(o.d) + " slower than " + sp(o.fastK)); }));
     el.innerHTML = h;
   }
 
@@ -1322,7 +1376,7 @@
     window.__G5_TEST.kinds = MODE_KINDS;
     window.__G5_TEST.setCorrect = function (m, n) { data[m].correct = n; };
     window.__G5_TEST.use = function (m) { mode = m; store = data[m]; sess = sessData[m]; };
-    window.__G5_TEST.speed = { gen: speedGen, rec: recordSpeed, pts: speedPoints, report: reportText, build: buildReport, weight: pairWeight, store: function () { return data.speed; } };
+    window.__G5_TEST.speed = { cfg: SPEED_CFG, gen: speedGen, rec: recordSpeed, pts: speedPoints, report: reportText, build: buildReport, weight: pairWeight, store: function () { return data.speed; } };
     window.__G5_TEST.solve = function (s) { return solveSteps(parseExpr(s)); };
   }
 
