@@ -7,8 +7,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#000000">
 <title>Avery &amp; Julian's Math</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✖️</text></svg>">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✖️</text></svg>">
+<link rel="icon" type="image/png" href="icon-avery-192.png">
+<link rel="apple-touch-icon" href="icon-avery-180.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="Avery & Julian's Math">
 <style>
   :root { --gap: clamp(10px, 3vw, 18px); --hdr: 92px; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -172,6 +174,39 @@
   .btn-next:active { background: #229c61; }
   .btn-map { background: #2a2a3a; color: #ffd84d; font-size: clamp(16px, 4.6vw, 20px); padding: clamp(11px, 3.4vw, 15px) 18px; }
   .btn-row { flex: 0 0 auto; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 10px; }
+
+  /* ===== Play offline / install card ===== */
+  .oc-wrap { width: 100%; max-width: 480px; }
+  .map-scroll { -webkit-overflow-scrolling: touch; }
+  .offline-card { margin: 16px 0 8px; background: #15151c; border: 2px solid #2c2c3a; border-radius: 18px; padding: 14px; text-align: left; }
+  .oc-title { font-size: clamp(17px, 4.6vw, 21px); font-weight: 800; color: #ffd84d; }
+  .oc-status { font-size: clamp(14px, 3.8vw, 17px); font-weight: 700; color: #cfd2e0; margin: 6px 0 12px; line-height: 1.3; }
+  .oc-status.ok { color: #7bd06a; }
+  .oc-btn { appearance: none; border: none; display: block; width: 100%; text-align: center; text-decoration: none; cursor: pointer; touch-action: manipulation;
+    border-radius: 14px; padding: 14px 12px; font-size: clamp(16px, 4.4vw, 20px); font-weight: 800; background: #2a2a3a; color: #fff; font-family: inherit; }
+  .oc-btn:active { transform: scale(0.97); }
+  .oc-primary { background: #6a4bd6; color: #fff; padding: 17px 12px; font-size: clamp(18px, 5vw, 22px); }
+  .oc-row { display: flex; gap: 8px; margin-top: 10px; }
+  .oc-row .oc-btn { flex: 1; font-size: clamp(14px, 3.8vw, 17px); padding: 13px 8px; }
+  .oc-steps { margin: 10px 0 0; padding: 12px 14px 12px 34px; background: rgba(106,75,214,0.15); border: 2px solid #6a4bd6; border-radius: 14px; font-size: clamp(15px, 4vw, 18px); font-weight: 600; color: #e6e8f2; line-height: 1.45; }
+  .oc-steps li { margin: 5px 0; }
+  .oc-steps b { color: #ffd84d; }
+  .oc-share { display: inline-block; border: 2px solid #7ad0ff; color: #7ad0ff; border-radius: 6px; padding: 0 6px; font-weight: 800; line-height: 1.2; }
+  .oc-games { margin-top: 12px; font-size: clamp(14px, 3.8vw, 17px); font-weight: 700; color: #9aa0b5; }
+  .oc-games a { color: #7ad0ff; font-weight: 800; text-decoration: none; padding: 6px 4px; }
+  .oc-note { margin-top: 10px; font-size: clamp(12px, 3.3vw, 14px); font-weight: 600; color: #8a8f9e; line-height: 1.35; }
+  .oc-hide { display: none !important; }
+
+  /* ===== Landscape tablets / short screens: problem on the left, keypad on the right ===== */
+  @media (orientation: landscape) and (max-height: 900px) {
+    #problemScreen { flex-direction: row; align-items: center; justify-content: center; gap: clamp(16px, 4vw, 48px); }
+    #problemScreen .problem-top { flex: 1 1 50%; min-width: 0; }
+    #problemScreen .keypad { flex: 0 0 min(42vw, 440px); width: min(42vw, 440px); max-width: none; margin-top: 0; gap: clamp(8px, 1.6vh, 14px); }
+    #problemScreen .key { padding: clamp(8px, 2.4vh, 20px) 0; font-size: clamp(22px, 5vh, 38px); }
+    #problemScreen .key.check { font-size: clamp(18px, 4vh, 28px); }
+    #problemScreen .problem:not(.expr):not(.word):not(.mid) { font-size: clamp(44px, 16vh, 120px); }
+    #problemScreen .answer-display { margin-top: clamp(6px, 1.6vh, 20px); font-size: clamp(34px, 9vh, 72px); }
+  }
 </style>
 </head>
 <body>
@@ -257,7 +292,7 @@
     <button class="seg-btn add" id="mapTabAdd" data-vm="add">➕ Julian</button>
   </div>
   <div class="map-sub" id="mapSub"></div>
-  <div class="map-scroll"><div class="map-grid" id="mapGrid"></div></div>
+  <div class="map-scroll"><div class="oc-wrap" style="max-width:440px"><div class="map-grid" id="mapGrid"></div><div class="offline-slot"></div></div></div>
   <div class="btn-row"><button class="big-btn btn-next" id="mapBackBtn">◀ Back</button></div>
 </section>
 
@@ -1036,6 +1071,101 @@
   updateScore();
   newProblem();
   startProblemFlow();
+})();
+</script>
+<script>
+(function () {
+  "use strict";
+  var ua = navigator.userAgent || "";
+  var isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  var isFile = location.protocol === "file:";
+  var standalone = !!(navigator.standalone || (window.matchMedia && matchMedia("(display-mode: standalone)").matches));
+  var hasSW = ("serviceWorker" in navigator) && !isFile;
+  var deferred = null;
+  window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); deferred = e; refresh(); });
+  window.addEventListener("appinstalled", function () { standalone = true; refresh(); });
+
+  var CARD = '' +
+    '<div class="oc-title">📲 Play offline · iPad</div>' +
+    '<div class="oc-status" data-oc="status"></div>' +
+    '<button class="oc-btn oc-primary" data-oc="install" type="button"></button>' +
+    '<ol class="oc-steps oc-hide" data-oc="steps"></ol>' +
+    '<div class="oc-row" data-oc="dl">' +
+      '<a class="oc-btn" href="index.html" download="Avery-Julian-Math.html">⬇️ Avery &amp; Julian</a>' +
+      '<a class="oc-btn" href="grade5.html" download="5th-Grade-Math.html">⬇️ 5th Grade</a>' +
+    '</div>' +
+    '<div class="oc-games" data-oc="games">🎮 Switch game: <a href="index.html">Avery &amp; Julian</a> · <a href="grade5.html">5th Grade</a></div>' +
+    '<div class="oc-note">Scores are saved on this device. The Home Screen app and Safari keep separate scores, so pick one place to play.</div>';
+
+  var STEPS_IOS = '<li>Open this page in <b>Safari</b>.</li>' +
+    '<li>Tap the <b>Share</b> button <span class="oc-share">⬆</span> (a square with an arrow, at the top of the screen).</li>' +
+    '<li>Scroll down and tap <b>Add to Home Screen</b>, then tap <b>Add</b>.</li>' +
+    '<li>Open the game from your Home Screen. It works with no internet!</li>';
+  var STEPS_OTHER = '<li>Open your browser menu (<b>⋮</b> or <b>⋯</b>).</li>' +
+    '<li>Tap <b>Install app</b> or <b>Add to Home screen</b>.</li>' +
+    '<li>Open the game from your Home screen. It works with no internet!</li>';
+
+  var cards = [], ready = false;
+
+  function q(card, k) { return card.querySelector('[data-oc="' + k + '"]'); }
+  function setStatus(card, txt, ok) { var s = q(card, "status"); s.textContent = txt; s.className = "oc-status" + (ok ? " ok" : ""); }
+
+  function refresh() {
+    cards.forEach(function (card) {
+      var inst = q(card, "install"), steps = q(card, "steps"), dl = q(card, "dl"), games = q(card, "games");
+      steps.innerHTML = isIOS ? STEPS_IOS : STEPS_OTHER;
+      if (isFile) {
+        setStatus(card, "✅ This is the downloaded copy. It works with no internet.", true);
+        inst.classList.add("oc-hide"); steps.classList.add("oc-hide"); dl.classList.add("oc-hide"); games.classList.add("oc-hide");
+        return;
+      }
+      if (standalone) {
+        setStatus(card, "✅ Installed. Works with no internet.", true);
+        inst.classList.add("oc-hide"); steps.classList.add("oc-hide"); dl.classList.add("oc-hide");
+        return;
+      }
+      inst.classList.remove("oc-hide");
+      inst.textContent = isIOS ? "📲 Add to Home Screen" : (deferred ? "📲 Install the app" : "📲 How to install");
+      if (!hasSW) setStatus(card, "Offline saving needs the website address (https). You can still download the game files below.", false);
+      else if (ready) setStatus(card, "✅ Both games are saved on this device and ready to play offline.", true);
+      else setStatus(card, "⏳ Saving the games for offline play… (keep this page open a moment)", false);
+    });
+  }
+
+  function onInstallClick(card) {
+    if (deferred) {
+      deferred.prompt();
+      deferred.userChoice.then(function () { deferred = null; refresh(); }, function () {});
+      return;
+    }
+    var steps = q(card, "steps"); steps.classList.toggle("oc-hide");
+  }
+
+  function checkReady(tries) {
+    if (!hasSW || !window.caches) return;
+    Promise.all(["index.html", "grade5.html"].map(function (f) { return caches.match(f, { ignoreSearch: true }); }))
+      .then(function (r) {
+        if (r[0] && r[1]) { ready = true; refresh(); }
+        else if (tries < 40) setTimeout(function () { checkReady(tries + 1); }, 750);
+      }, function () {});
+  }
+
+  function setup() {
+    var slots = document.querySelectorAll(".offline-slot");
+    for (var i = 0; i < slots.length; i++) {
+      var card = document.createElement("div"); card.className = "offline-card"; card.innerHTML = CARD;
+      slots[i].appendChild(card); cards.push(card);
+      (function (c) { q(c, "install").addEventListener("click", function () { onInstallClick(c); }); })(card);
+    }
+    refresh();
+    if (hasSW) {
+      navigator.serviceWorker.register("sw.js").then(function () { return navigator.serviceWorker.ready; })
+        .then(function () { checkReady(0); })
+        .catch(function () { hasSW = false; refresh(); });
+    }
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", setup); else setup();
 })();
 </script>
 </body>
