@@ -276,8 +276,8 @@
 <noscript>
 <div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:22px;line-height:1.5;">
 <div style="font-size:64px;margin-bottom:12px;">📲</div>
-<div style="font-weight:800;font-size:28px;margin-bottom:12px;">This game can't run in a file preview</div>
-<div style="max-width:520px;color:#cfd2e0;">If you opened a saved file on an iPad (from the Files app), it only shows a preview and can't run the game.<br><br>Instead, open the game's website in <b style="color:#ffd84d;">Safari</b>, tap the <b style="color:#ffd84d;">Share</b> button, then <b style="color:#ffd84d;">Add to Home Screen</b>. It works with no internet.</div>
+<div style="font-weight:800;font-size:28px;margin-bottom:12px;">This game needs JavaScript to run</div>
+<div style="max-width:520px;color:#cfd2e0;">It looks like scripts are turned off or this is a preview. Try opening the game in <b style="color:#ffd84d;">Safari</b>, or from the <b style="color:#ffd84d;">Home Screen</b> icon (Share, then Add to Home Screen).</div>
 </div>
 </noscript>
 
@@ -1448,10 +1448,9 @@
     '<button class="oc-btn oc-primary" data-oc="install" type="button"></button>' +
     '<ol class="oc-steps oc-hide" data-oc="steps"></ol>' +
     '<div class="oc-row" data-oc="dl">' +
-      '<a class="oc-btn" href="index.html" download="Avery-Julian-Math.html">⬇️ Avery &amp; Julian file</a>' +
-      '<a class="oc-btn" href="grade5.html" download="5th-Grade-Math.html">⬇️ 5th Grade file</a>' +
+      '<a class="oc-btn" href="index.html" download="Avery-Julian-Math.html">⬇️ Avery &amp; Julian</a>' +
+      '<a class="oc-btn" href="grade5.html" download="5th-Grade-Math.html">⬇️ 5th Grade</a>' +
     '</div>' +
-    '<div class="oc-note oc-hide" data-oc="dlnote">⚠️ Saved files can\'t be played on an iPad. The Files app only shows a preview that can\'t run games (you get a black screen). Use <b>Add to Home Screen</b> above. It works with no internet.</div>' +
     '<div class="oc-games" data-oc="games">🎮 Switch game: <a href="index.html">Avery &amp; Julian</a> · <a href="grade5.html">5th Grade</a></div>' +
     '<div class="oc-note">Scores are saved on this device. The Home Screen app and Safari keep separate scores, so pick one place to play.</div>';
 
@@ -1470,8 +1469,7 @@
 
   function refresh() {
     cards.forEach(function (card) {
-      var inst = q(card, "install"), steps = q(card, "steps"), dl = q(card, "dl"), games = q(card, "games"), dlnote = q(card, "dlnote");
-      dlnote.classList.add("oc-hide");
+      var inst = q(card, "install"), steps = q(card, "steps"), dl = q(card, "dl"), games = q(card, "games");
       steps.innerHTML = isIOS ? STEPS_IOS : STEPS_OTHER;
       if (isFile) {
         setStatus(card, "✅ This is the downloaded copy. It works with no internet.", true);
@@ -1484,7 +1482,7 @@
         return;
       }
       inst.classList.remove("oc-hide");
-      if (isIOS) { dl.classList.add("oc-hide"); dlnote.classList.remove("oc-hide"); } else dl.classList.remove("oc-hide");
+      dl.classList.remove("oc-hide");
       inst.textContent = isIOS ? "📲 Add to Home Screen" : (deferred ? "📲 Install the app" : "📲 How to install");
       if (!hasSW) setStatus(card, "Offline saving needs the website address (https). You can still download the game files below.", false);
       else if (ready) setStatus(card, "✅ Both games are saved on this device and ready to play offline.", true);
