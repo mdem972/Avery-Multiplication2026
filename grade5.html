@@ -258,6 +258,12 @@
   .oc-games { margin-top: 12px; font-size: clamp(14px, 3.8vw, 17px); font-weight: 700; color: #9aa0b5; }
   .oc-games a { color: #7ad0ff; font-weight: 800; text-decoration: none; padding: 6px 4px; }
   .oc-note { margin-top: 10px; font-size: clamp(12px, 3.3vw, 14px); font-weight: 600; color: #8a8f9e; line-height: 1.35; }
+
+  .oc-dl { margin-top: 14px; padding-top: 12px; border-top: 2px solid #2c2c3a; display: flex; flex-direction: column; gap: 10px; }
+  .oc-dl-title { font-size: clamp(16px, 4.4vw, 20px); font-weight: 800; color: #fff; }
+  .oc-dlbtn { background: #2bb673; color: #fff; padding: 17px 12px; font-size: clamp(17px, 4.8vw, 21px); }
+  .oc-dlbtn:active { background: #229c61; }
+  .oc-jump { background: #2bb673 !important; color: #fff !important; }
   .oc-hide { display: none !important; }
 
   /* ===== Landscape tablets / short screens: problem on the left, keypad on the right ===== */
@@ -376,6 +382,7 @@
   <div class="map-sub" id="mapSub"></div>
   <div class="map-scroll"><div class="oc-wrap"><div class="skill-list" id="mapList"></div><div class="offline-slot"></div></div></div>
   <div class="btn-row">
+    <button class="big-btn btn-map oc-jump" data-oc-jump type="button">⬇️ Download for offline play</button>
     <button class="big-btn btn-map" id="mapRepBtn" style="display:none;">📊 Report</button>
     <button class="big-btn btn-next" id="mapBackBtn">◀ Back</button>
   </div>
@@ -386,6 +393,7 @@
   <div class="map-title" id="repTitle">📊 Speed Report</div>
   <div class="map-scroll"><div class="oc-wrap"><div class="skill-list" id="repBody"></div><div class="offline-slot"></div></div></div>
   <div class="btn-row">
+    <button class="big-btn btn-map oc-jump" data-oc-jump type="button">⬇️ Download for offline play</button>
     <button class="big-btn btn-map" id="repCopyBtn">📋 Copy report</button>
     <button class="big-btn btn-next" id="repBackBtn">◀ Back</button>
   </div>
@@ -1447,9 +1455,10 @@
     '<div class="oc-status" data-oc="status"></div>' +
     '<button class="oc-btn oc-primary" data-oc="install" type="button"></button>' +
     '<ol class="oc-steps oc-hide" data-oc="steps"></ol>' +
-    '<div class="oc-row" data-oc="dl">' +
-      '<a class="oc-btn" href="index.html" download="Avery-Julian-Math.html">⬇️ Avery &amp; Julian</a>' +
-      '<a class="oc-btn" href="grade5.html" download="5th-Grade-Math.html">⬇️ 5th Grade</a>' +
+    '<div class="oc-dl" data-oc="dl">' +
+      '<div class="oc-dl-title">⬇️ Download to play offline</div>' +
+      '<a class="oc-btn oc-dlbtn" href="index.html" download="Avery-Julian-Math.html">⬇️ Download Avery &amp; Julian game</a>' +
+      '<a class="oc-btn oc-dlbtn" href="grade5.html" download="5th-Grade-Math.html">⬇️ Download 5th Grade game</a>' +
     '</div>' +
     '<div class="oc-games" data-oc="games">🎮 Switch game: <a href="index.html">Avery &amp; Julian</a> · <a href="grade5.html">5th Grade</a></div>' +
     '<div class="oc-note">Scores are saved on this device. The Home Screen app and Safari keep separate scores, so pick one place to play.</div>';
@@ -1468,6 +1477,8 @@
   function setStatus(card, txt, ok) { var s = q(card, "status"); s.textContent = txt; s.className = "oc-status" + (ok ? " ok" : ""); }
 
   function refresh() {
+    var showJump = !isFile && !standalone, js = document.querySelectorAll("[data-oc-jump]");
+    for (var k = 0; k < js.length; k++) js[k].style.display = showJump ? "" : "none";
     cards.forEach(function (card) {
       var inst = q(card, "install"), steps = q(card, "steps"), dl = q(card, "dl"), games = q(card, "games");
       steps.innerHTML = isIOS ? STEPS_IOS : STEPS_OTHER;
@@ -1515,6 +1526,11 @@
       slots[i].appendChild(card); cards.push(card);
       (function (c) { q(c, "install").addEventListener("click", function () { onInstallClick(c); }); })(card);
     }
+    var jumps = document.querySelectorAll("[data-oc-jump]");
+    for (var j = 0; j < jumps.length; j++) jumps[j].addEventListener("click", function (e) {
+      var scr = e.currentTarget.closest(".screen"), c = scr && scr.querySelector(".offline-card");
+      if (c) c.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
     refresh();
     if (hasSW) {
       navigator.serviceWorker.register("sw.js").then(function () { return navigator.serviceWorker.ready; })
